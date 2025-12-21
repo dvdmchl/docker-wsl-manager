@@ -25,6 +25,7 @@ import java.util.Optional;
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final int LOGS_TAB_INDEX = 4;
 
     private DockerConnectionManager connectionManager;
     private Stage primaryStage;
@@ -93,7 +94,7 @@ public class MainController {
             containerIdColumn.setCellValueFactory(data -> 
                 new SimpleStringProperty(data.getValue().getId().substring(0, Math.min(12, data.getValue().getId().length()))));
             containerNameColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getNames()[0]));
+                new SimpleStringProperty(getContainerName(data.getValue())));
             containerImageColumn.setCellValueFactory(data -> 
                 new SimpleStringProperty(data.getValue().getImage()));
             containerStatusColumn.setCellValueFactory(data -> 
@@ -274,7 +275,7 @@ public class MainController {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Confirm Removal");
         confirm.setHeaderText("Remove Container");
-        confirm.setContentText("Are you sure you want to remove container " + selected.getNames()[0] + "?");
+        confirm.setContentText("Are you sure you want to remove container " + getContainerName(selected) + "?");
         
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -299,10 +300,10 @@ public class MainController {
 
         try {
             // Switch to logs tab
-            mainTabPane.getSelectionModel().select(4); // Logs tab index
+            mainTabPane.getSelectionModel().select(LOGS_TAB_INDEX);
             
             logsTextArea.clear();
-            logsTextArea.appendText("Fetching logs for " + selected.getNames()[0] + "...\n\n");
+            logsTextArea.appendText("Fetching logs for " + getContainerName(selected) + "...\n\n");
             
             // Fetch logs in background
             new Thread(() -> {
@@ -347,7 +348,7 @@ public class MainController {
 
         showAlert(Alert.AlertType.INFORMATION, "Console Attach", 
             "Console attach feature requires terminal integration.\n" +
-            "Container: " + selected.getNames()[0] + "\n" +
+            "Container: " + getContainerName(selected) + "\n" +
             "ID: " + selected.getId().substring(0, 12));
     }
 
@@ -582,6 +583,13 @@ public class MainController {
             return false;
         }
         return true;
+    }
+
+    private String getContainerName(Container container) {
+        if (container.getNames() != null && container.getNames().length > 0) {
+            return container.getNames()[0];
+        }
+        return container.getId().substring(0, Math.min(12, container.getId().length()));
     }
 
     private String formatSize(Long size) {

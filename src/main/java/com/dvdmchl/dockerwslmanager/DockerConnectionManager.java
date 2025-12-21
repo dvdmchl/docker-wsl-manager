@@ -96,14 +96,15 @@ public class DockerConnectionManager {
             ProcessBuilder pb = new ProcessBuilder("wsl", "hostname", "-I");
             Process process = pb.start();
             
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String line = reader.readLine();
-            
-            int exitCode = process.waitFor();
-            if (exitCode == 0 && line != null && !line.isEmpty()) {
-                // hostname -I may return multiple IPs, take the first one
-                String[] ips = line.trim().split("\\s+");
-                return ips[0];
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line = reader.readLine();
+                
+                int exitCode = process.waitFor();
+                if (exitCode == 0 && line != null && !line.isEmpty()) {
+                    // hostname -I may return multiple IPs, take the first one
+                    String[] ips = line.trim().split("\\s+");
+                    return ips[0];
+                }
             }
         } catch (Exception e) {
             logger.error("Failed to get WSL IP address", e);
