@@ -2,6 +2,8 @@
 
 Lightweight standalone JavaFX application for managing Docker running in WSL 2, connecting via TCP/IP.
 
+![Application Screenshot](doc/img/screen1.png)
+
 ## Features
 
 - **Multiple Connection Methods**:
