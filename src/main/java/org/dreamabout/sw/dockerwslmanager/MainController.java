@@ -308,22 +308,53 @@ public class MainController {
             // Fetch logs in background
             new Thread(() -> {
                 try {
-                    StringBuilder logs = new StringBuilder();
                     connectionManager.getDockerClient().logContainerCmd(selected.getId())
                             .withStdOut(true)
                             .withStdErr(true)
-                            .withTail(500)
+                            .withTail(1000)
+                            .withFollowStream(false)  // Don't follow stream to get logs immediately
                             .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame>() {
+                                private final StringBuilder logs = new StringBuilder();
+                                private long lastUpdate = System.currentTimeMillis();
+
                                 @Override
                                 public void onNext(com.github.dockerjava.api.model.Frame frame) {
                                     logs.append(new String(frame.getPayload()));
+
+                                    // Update UI periodically (every 100ms) to avoid too many updates
+                                    long now = System.currentTimeMillis();
+                                    if (now - lastUpdate > 100) {
+                                        String currentLogs = logs.toString();
+                                        Platform.runLater(() -> logsTextArea.setText(currentLogs));
+                                        lastUpdate = now;
+                                    }
                                 }
-                            }).awaitCompletion();
-                    
-                    Platform.runLater(() -> {
-                        logsTextArea.clear();
-                        logsTextArea.appendText(logs.toString());
-                    });
+
+                                @Override
+                                public void onComplete() {
+                                    super.onComplete();
+                                    String finalLogs = logs.toString();
+                                    Platform.runLater(() -> {
+                                        logsTextArea.setText(finalLogs);
+                                        if (finalLogs.isEmpty()) {
+                                            logsTextArea.setText("No logs available for this container.");
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onError(Throwable throwable) {
+                                    super.onError(throwable);
+                                    logger.error("Error in log stream", throwable);
+                                    Platform.runLater(() -> {
+                                        logsTextArea.setText("Error fetching logs: " + throwable.getMessage());
+                                    });
+                                }
+                            }).awaitCompletion(5, java.util.concurrent.TimeUnit.SECONDS);
+
+                } catch (InterruptedException e) {
+                    logger.warn("Log fetching interrupted", e);
+                    Thread.currentThread().interrupt();
                 } catch (Exception e) {
                     logger.error("Failed to fetch logs", e);
                     Platform.runLater(() -> {
