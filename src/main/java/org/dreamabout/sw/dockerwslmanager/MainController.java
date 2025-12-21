@@ -346,10 +346,48 @@ public class MainController {
             return;
         }
 
-        showAlert(Alert.AlertType.INFORMATION, "Console Attach", 
-            "Console attach feature requires terminal integration.\n" +
-            "Container: " + getContainerName(selected) + "\n" +
-            "ID: " + selected.getId().substring(0, 12));
+        try {
+            String containerId = selected.getId();
+            String containerName = getContainerName(selected);
+
+            // Check if container is running
+            if (!selected.getState().equalsIgnoreCase("running")) {
+                showAlert(Alert.AlertType.WARNING, "Container Not Running",
+                    "Container " + containerName + " is not running. Please start it first.");
+                return;
+            }
+
+            // Get Docker host information to construct the docker command
+            String dockerHost = connectionManager.getCurrentConnectionString();
+
+            // Build docker attach command
+            StringBuilder dockerCommand = new StringBuilder();
+
+            // If using custom Docker host, set DOCKER_HOST environment variable
+            if (dockerHost != null && !dockerHost.isEmpty() && !dockerHost.equals("default")) {
+                dockerCommand.append("set DOCKER_HOST=").append(dockerHost).append(" && ");
+            }
+
+            dockerCommand.append("docker attach ").append(containerId);
+            dockerCommand.append(" || pause");
+
+            // Start new cmd window with docker attach
+            // Using cmd /c start to open a new window, then cmd /k to keep it open after command
+            ProcessBuilder processBuilder = new ProcessBuilder(
+                "cmd.exe", "/c", "start",
+                "Docker Attach - " + containerName,
+                "cmd.exe", "/k",
+                dockerCommand.toString()
+            );
+            processBuilder.start();
+
+            logger.info("Opened console for container: {}", containerName);
+
+        } catch (Exception e) {
+            logger.error("Failed to attach console", e);
+            showAlert(Alert.AlertType.ERROR, "Error",
+                "Failed to open console: " + e.getMessage());
+        }
     }
 
     @FXML
