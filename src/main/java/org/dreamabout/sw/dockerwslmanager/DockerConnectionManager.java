@@ -1,4 +1,4 @@
-package com.dvdmchl.dockerwslmanager;
+package org.dreamabout.sw.dockerwslmanager;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.core.DefaultDockerClientConfig;

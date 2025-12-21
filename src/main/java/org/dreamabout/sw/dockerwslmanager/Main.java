@@ -1,4 +1,4 @@
-package com.dvdmchl.dockerwslmanager;
+package org.dreamabout.sw.dockerwslmanager;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
