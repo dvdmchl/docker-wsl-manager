@@ -1,0 +1,32 @@
+# Docker WSL Manager - Release 1.0.0
+
+## Installation
+
+1. Ensure Java 22 or higher is installed
+2. Run the application:
+   - Windows: Double-click un.bat or run java -jar docker-wsl-manager.jar
+   - Linux/Mac: Run java -jar docker-wsl-manager.jar
+
+## System Requirements
+
+- Java Runtime Environment (JRE) 22 or higher
+- Windows 10/11 with WSL 2 (recommended)
+- Docker Desktop or Docker daemon
+
+## Files Included
+
+- docker-wsl-manager.jar - Main application (standalone, all dependencies included)
+- un.bat - Windows launcher script
+- README.md - User documentation
+- LICENSE - License information
+
+## Build Information
+
+- Version: 1.0.0
+- Build Date: 2025-12-21 17:30:48
+- Java Version: 22
+- JavaFX Version: 25.0.1
+
+## Support
+
+For issues and feature requests, please visit the project repository.
