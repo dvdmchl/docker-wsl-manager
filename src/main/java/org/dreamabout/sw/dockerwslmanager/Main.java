@@ -14,19 +14,14 @@ public class Main extends Application {
     @Override
     public void start(Stage primaryStage) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/main.fxml"));
+            FXMLLoader loader = new FXMLLoader(Main.class.getResource("/main.fxml"));
             Parent root = loader.load();
-            
+
             Scene scene = new Scene(root, 1200, 800);
-            
+
             primaryStage.setTitle("Docker WSL Manager");
             primaryStage.setScene(scene);
             primaryStage.show();
-            
-            // Get controller and initialize
-            MainController controller = loader.getController();
-            controller.setPrimaryStage(primaryStage);
-            
         } catch (Exception e) {
             logger.error("Failed to start application", e);
             e.printStackTrace();

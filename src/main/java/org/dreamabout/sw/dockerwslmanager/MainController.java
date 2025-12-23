@@ -1,89 +1,132 @@
 package org.dreamabout.sw.dockerwslmanager;
 
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.api.command.InspectVolumeResponse;
+import com.github.dockerjava.api.model.Container;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.Image;
+import com.github.dockerjava.api.model.Network;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.time.Instant;
-import java.time.ZoneId;
+import java.nio.charset.StandardCharsets;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int LOGS_TAB_INDEX = 4;
 
     private DockerConnectionManager connectionManager;
-    private Stage primaryStage;
 
-    @FXML private TextField hostField;
-    @FXML private TextField portField;
-    @FXML private Label connectionStatusLabel;
-    @FXML private Button connectEnvButton;
-    @FXML private Button connectManualButton;
-    @FXML private Button connectAutoButton;
-    @FXML private Button disconnectButton;
+    @FXML
+    private TextField hostField;
+    @FXML
+    private TextField portField;
+    @FXML
+    private Label connectionStatusLabel;
+    @FXML
+    private Button connectEnvButton;
+    @FXML
+    private Button connectManualButton;
+    @FXML
+    private Button connectAutoButton;
+    @FXML
+    private Button disconnectButton;
 
-    @FXML private TabPane mainTabPane;
-    
+    @FXML
+    private TabPane mainTabPane;
+
     // Containers tab
-    @FXML private TableView<Container> containersTable;
-    @FXML private TableColumn<Container, String> containerIdColumn;
-    @FXML private TableColumn<Container, String> containerNameColumn;
-    @FXML private TableColumn<Container, String> containerImageColumn;
-    @FXML private TableColumn<Container, String> containerStatusColumn;
-    @FXML private Button startContainerButton;
-    @FXML private Button stopContainerButton;
-    @FXML private Button restartContainerButton;
-    @FXML private Button removeContainerButton;
-    @FXML private Button viewLogsButton;
-    @FXML private Button attachConsoleButton;
+    @FXML
+    private TableView<Container> containersTable;
+    @FXML
+    private TableColumn<Container, String> containerIdColumn;
+    @FXML
+    private TableColumn<Container, String> containerNameColumn;
+    @FXML
+    private TableColumn<Container, String> containerImageColumn;
+    @FXML
+    private TableColumn<Container, String> containerStatusColumn;
+    @FXML
+    private Button startContainerButton;
+    @FXML
+    private Button stopContainerButton;
+    @FXML
+    private Button restartContainerButton;
+    @FXML
+    private Button removeContainerButton;
+    @FXML
+    private Button viewLogsButton;
+    @FXML
+    private Button attachConsoleButton;
 
     // Images tab
-    @FXML private TableView<Image> imagesTable;
-    @FXML private TableColumn<Image, String> imageIdColumn;
-    @FXML private TableColumn<Image, String> imageRepoColumn;
-    @FXML private TableColumn<Image, String> imageTagColumn;
-    @FXML private TableColumn<Image, String> imageSizeColumn;
-    @FXML private Button removeImageButton;
-    @FXML private Button pullImageButton;
+    @FXML
+    private TableView<Image> imagesTable;
+    @FXML
+    private TableColumn<Image, String> imageIdColumn;
+    @FXML
+    private TableColumn<Image, String> imageRepoColumn;
+    @FXML
+    private TableColumn<Image, String> imageTagColumn;
+    @FXML
+    private TableColumn<Image, String> imageSizeColumn;
+    @FXML
+    private Button removeImageButton;
+    @FXML
+    private Button pullImageButton;
 
     // Volumes tab
-    @FXML private TableView<com.github.dockerjava.api.command.InspectVolumeResponse> volumesTable;
-    @FXML private TableColumn<com.github.dockerjava.api.command.InspectVolumeResponse, String> volumeNameColumn;
-    @FXML private TableColumn<com.github.dockerjava.api.command.InspectVolumeResponse, String> volumeDriverColumn;
-    @FXML private TableColumn<com.github.dockerjava.api.command.InspectVolumeResponse, String> volumeMountpointColumn;
-    @FXML private Button removeVolumeButton;
+    @FXML
+    private TableView<InspectVolumeResponse> volumesTable;
+    @FXML
+    private TableColumn<InspectVolumeResponse, String> volumeNameColumn;
+    @FXML
+    private TableColumn<InspectVolumeResponse, String> volumeDriverColumn;
+    @FXML
+    private TableColumn<InspectVolumeResponse, String> volumeMountpointColumn;
+    @FXML
+    private Button removeVolumeButton;
 
     // Networks tab
-    @FXML private TableView<Network> networksTable;
-    @FXML private TableColumn<Network, String> networkIdColumn;
-    @FXML private TableColumn<Network, String> networkNameColumn;
-    @FXML private TableColumn<Network, String> networkDriverColumn;
-    @FXML private TableColumn<Network, String> networkScopeColumn;
-    @FXML private Button removeNetworkButton;
+    @FXML
+    private TableView<Network> networksTable;
+    @FXML
+    private TableColumn<Network, String> networkIdColumn;
+    @FXML
+    private TableColumn<Network, String> networkNameColumn;
+    @FXML
+    private TableColumn<Network, String> networkDriverColumn;
+    @FXML
+    private TableColumn<Network, String> networkScopeColumn;
+    @FXML
+    private Button removeNetworkButton;
 
     // Logs tab
-    @FXML private TextArea logsTextArea;
+    @FXML
+    private TextArea logsTextArea;
 
     @FXML
     public void initialize() {
         connectionManager = new DockerConnectionManager();
-        
+
         // Initialize connection fields
         hostField.setText("localhost");
         portField.setText("2375");
@@ -91,20 +134,22 @@ public class MainController {
 
         // Initialize containers table
         if (containerIdColumn != null) {
-            containerIdColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getId().substring(0, Math.min(12, data.getValue().getId().length()))));
-            containerNameColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(getContainerName(data.getValue())));
-            containerImageColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getImage()));
-            containerStatusColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getStatus()));
+            containerIdColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getId()
+                            .substring(0, Math.min(12, data.getValue().getId().length()))));
+            containerNameColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(getContainerName(data.getValue())));
+            containerImageColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getImage()));
+            containerStatusColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getStatus()));
         }
 
         // Initialize images table
         if (imageIdColumn != null) {
-            imageIdColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getId().replace("sha256:", "").substring(0, 12)));
+            imageIdColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getId()
+                            .replace("sha256:", "").substring(0, 12)));
             imageRepoColumn.setCellValueFactory(data -> {
                 String[] repoTags = data.getValue().getRepoTags();
                 if (repoTags != null && repoTags.length > 0) {
@@ -121,47 +166,44 @@ public class MainController {
                 }
                 return new SimpleStringProperty("<none>");
             });
-            imageSizeColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(formatSize(data.getValue().getSize())));
+            imageSizeColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(formatSize(data.getValue().getSize())));
         }
 
         // Initialize volumes table
         if (volumeNameColumn != null) {
-            volumeNameColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getName()));
-            volumeDriverColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getDriver()));
-            volumeMountpointColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getMountpoint()));
+            volumeNameColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getName()));
+            volumeDriverColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getDriver()));
+            volumeMountpointColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getMountpoint()));
         }
 
         // Initialize networks table
         if (networkIdColumn != null) {
-            networkIdColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getId().substring(0, Math.min(12, data.getValue().getId().length()))));
-            networkNameColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getName()));
-            networkDriverColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getDriver()));
-            networkScopeColumn.setCellValueFactory(data -> 
-                new SimpleStringProperty(data.getValue().getScope()));
+            networkIdColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getId()
+                            .substring(0, Math.min(12, data.getValue().getId().length()))));
+            networkNameColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getName()));
+            networkDriverColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getDriver()));
+            networkScopeColumn.setCellValueFactory(data ->
+                    new SimpleStringProperty(data.getValue().getScope()));
         }
-    }
-
-    public void setPrimaryStage(Stage primaryStage) {
-        this.primaryStage = primaryStage;
     }
 
     @FXML
     private void handleConnectEnvironment() {
         if (connectionManager.connectFromEnvironment()) {
             updateConnectionStatus();
-            showAlert(Alert.AlertType.INFORMATION, "Connection Successful", 
-                "Connected to Docker using DOCKER_HOST environment variable.");
+            showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
+                    "Connected to Docker using DOCKER_HOST environment variable.");
             refreshAll();
         } else {
-            showAlert(Alert.AlertType.ERROR, "Connection Failed", 
-                "Failed to connect using DOCKER_HOST. Check if the environment variable is set correctly.");
+            showAlert(Alert.AlertType.ERROR, "Connection Failed",
+                    "Failed to connect using DOCKER_HOST. Check if the environment variable is set correctly.");
         }
     }
 
@@ -170,15 +212,15 @@ public class MainController {
         try {
             String host = hostField.getText().trim();
             int port = Integer.parseInt(portField.getText().trim());
-            
+
             if (connectionManager.connectManual(host, port)) {
                 updateConnectionStatus();
-                showAlert(Alert.AlertType.INFORMATION, "Connection Successful", 
-                    String.format("Connected to Docker at %s:%d", host, port));
+                showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
+                        String.format("Connected to Docker at %s:%d", host, port));
                 refreshAll();
             } else {
-                showAlert(Alert.AlertType.ERROR, "Connection Failed", 
-                    String.format("Failed to connect to Docker at %s:%d", host, port));
+                showAlert(Alert.AlertType.ERROR, "Connection Failed",
+                        String.format("Failed to connect to Docker at %s:%d", host, port));
             }
         } catch (NumberFormatException e) {
             showAlert(Alert.AlertType.ERROR, "Invalid Port", "Please enter a valid port number.");
@@ -189,12 +231,12 @@ public class MainController {
     private void handleConnectAuto() {
         if (connectionManager.connectAutoDiscover()) {
             updateConnectionStatus();
-            showAlert(Alert.AlertType.INFORMATION, "Connection Successful", 
-                "Auto-discovered and connected to Docker in WSL.");
+            showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
+                    "Auto-discovered and connected to Docker in WSL.");
             refreshAll();
         } else {
-            showAlert(Alert.AlertType.ERROR, "Connection Failed", 
-                "Failed to auto-discover Docker in WSL. Make sure WSL is running and Docker is accessible.");
+            showAlert(Alert.AlertType.ERROR, "Connection Failed",
+                    "Failed to auto-discover Docker in WSL. Make sure WSL is running and Docker is accessible.");
         }
     }
 
@@ -276,7 +318,7 @@ public class MainController {
         confirm.setTitle("Confirm Removal");
         confirm.setHeaderText("Remove Container");
         confirm.setContentText("Are you sure you want to remove container " + getContainerName(selected) + "?");
-        
+
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
@@ -301,10 +343,10 @@ public class MainController {
         try {
             // Switch to logs tab
             mainTabPane.getSelectionModel().select(LOGS_TAB_INDEX);
-            
+
             logsTextArea.clear();
             logsTextArea.appendText("Fetching logs for " + getContainerName(selected) + "...\n\n");
-            
+
             // Fetch logs in background
             new Thread(() -> {
                 try {
@@ -313,13 +355,13 @@ public class MainController {
                             .withStdErr(true)
                             .withTail(1000)
                             .withFollowStream(false)  // Don't follow stream to get logs immediately
-                            .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame>() {
+                            .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<Frame>() {
                                 private final StringBuilder logs = new StringBuilder();
                                 private long lastUpdate = System.currentTimeMillis();
 
                                 @Override
-                                public void onNext(com.github.dockerjava.api.model.Frame frame) {
-                                    logs.append(new String(frame.getPayload()));
+                                public void onNext(Frame frame) {
+                                    logs.append(new String(frame.getPayload(), StandardCharsets.UTF_8));
 
                                     // Update UI periodically (every 100ms) to avoid too many updates
                                     long now = System.currentTimeMillis();
@@ -384,7 +426,7 @@ public class MainController {
             // Check if container is running
             if (!selected.getState().equalsIgnoreCase("running")) {
                 showAlert(Alert.AlertType.WARNING, "Container Not Running",
-                    "Container " + containerName + " is not running. Please start it first.");
+                        "Container " + containerName + " is not running. Please start it first.");
                 return;
             }
 
@@ -405,10 +447,10 @@ public class MainController {
             // Start new cmd window with docker attach
             // Using cmd /c start to open a new window, then cmd /k to keep it open after command
             ProcessBuilder processBuilder = new ProcessBuilder(
-                "cmd.exe", "/c", "start",
-                "Docker Attach - " + containerName,
-                "cmd.exe", "/k",
-                dockerCommand.toString()
+                    "cmd.exe", "/c", "start",
+                    "Docker Attach - " + containerName,
+                    "cmd.exe", "/k",
+                    dockerCommand.toString()
             );
             processBuilder.start();
 
@@ -417,7 +459,7 @@ public class MainController {
         } catch (Exception e) {
             logger.error("Failed to attach console", e);
             showAlert(Alert.AlertType.ERROR, "Error",
-                "Failed to open console: " + e.getMessage());
+                    "Failed to open console: " + e.getMessage());
         }
     }
 
@@ -437,21 +479,23 @@ public class MainController {
         result.ifPresent(imageName -> {
             new Thread(() -> {
                 try {
-                    Platform.runLater(() -> 
-                        showAlert(Alert.AlertType.INFORMATION, "Pulling Image", 
-                            "Pulling image " + imageName + "... This may take a while."));
-                    
+                    Platform.runLater(() ->
+                            showAlert(Alert.AlertType.INFORMATION, "Pulling Image",
+                                    "Pulling image " + imageName
+                                            + "... This may take a while."));
+
                     connectionManager.getDockerClient().pullImageCmd(imageName)
-                            .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<>()).awaitCompletion();
-                    
+                            .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<>())
+                            .awaitCompletion();
+
                     Platform.runLater(() -> {
                         showAlert(Alert.AlertType.INFORMATION, "Success", "Image pulled successfully.");
                         refreshImages();
                     });
                 } catch (Exception e) {
                     logger.error("Failed to pull image", e);
-                    Platform.runLater(() -> 
-                        showAlert(Alert.AlertType.ERROR, "Error", "Failed to pull image: " + e.getMessage()));
+                    Platform.runLater(() ->
+                            showAlert(Alert.AlertType.ERROR, "Error", "Failed to pull image: " + e.getMessage()));
                 }
             }).start();
         });
@@ -469,7 +513,7 @@ public class MainController {
         confirm.setTitle("Confirm Removal");
         confirm.setHeaderText("Remove Image");
         confirm.setContentText("Are you sure you want to remove this image?");
-        
+
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
@@ -490,7 +534,7 @@ public class MainController {
 
     @FXML
     private void handleRemoveVolume() {
-        com.github.dockerjava.api.command.InspectVolumeResponse selected = volumesTable.getSelectionModel().getSelectedItem();
+        InspectVolumeResponse selected = volumesTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a volume to remove.");
             return;
@@ -500,7 +544,7 @@ public class MainController {
         confirm.setTitle("Confirm Removal");
         confirm.setHeaderText("Remove Volume");
         confirm.setContentText("Are you sure you want to remove volume " + selected.getName() + "?");
-        
+
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
@@ -530,8 +574,9 @@ public class MainController {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Confirm Removal");
         confirm.setHeaderText("Remove Network");
-        confirm.setContentText("Are you sure you want to remove network " + selected.getName() + "?");
-        
+        confirm.setContentText("Are you sure you want to remove network "
+                + selected.getName() + "?");
+
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
@@ -540,20 +585,23 @@ public class MainController {
                 refreshNetworks();
             } catch (Exception e) {
                 logger.error("Failed to remove network", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to remove network: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, "Error",
+                        "Failed to remove network: " + e.getMessage());
             }
         }
     }
 
     private void refreshContainers() {
-        if (!checkConnection()) return;
+        if (!checkConnection()) {
+            return;
+        }
 
         try {
             List<Container> containers = connectionManager.getDockerClient()
                     .listContainersCmd()
                     .withShowAll(true)
                     .exec();
-            
+
             ObservableList<Container> containerList = FXCollections.observableArrayList(containers);
             containersTable.setItems(containerList);
         } catch (Exception e) {
@@ -563,13 +611,15 @@ public class MainController {
     }
 
     private void refreshImages() {
-        if (!checkConnection()) return;
+        if (!checkConnection()) {
+            return;
+        }
 
         try {
             List<Image> images = connectionManager.getDockerClient()
                     .listImagesCmd()
                     .exec();
-            
+
             ObservableList<Image> imageList = FXCollections.observableArrayList(images);
             imagesTable.setItems(imageList);
         } catch (Exception e) {
@@ -579,15 +629,17 @@ public class MainController {
     }
 
     private void refreshVolumes() {
-        if (!checkConnection()) return;
+        if (!checkConnection()) {
+            return;
+        }
 
         try {
-            List<com.github.dockerjava.api.command.InspectVolumeResponse> volumes = connectionManager.getDockerClient()
+            List<InspectVolumeResponse> volumes = connectionManager.getDockerClient()
                     .listVolumesCmd()
                     .exec()
                     .getVolumes();
-            
-            ObservableList<com.github.dockerjava.api.command.InspectVolumeResponse> volumeList = FXCollections.observableArrayList(volumes);
+
+            ObservableList<InspectVolumeResponse> volumeList = FXCollections.observableArrayList(volumes);
             volumesTable.setItems(volumeList);
         } catch (Exception e) {
             logger.error("Failed to refresh volumes", e);
@@ -596,13 +648,15 @@ public class MainController {
     }
 
     private void refreshNetworks() {
-        if (!checkConnection()) return;
+        if (!checkConnection()) {
+            return;
+        }
 
         try {
             List<Network> networks = connectionManager.getDockerClient()
                     .listNetworksCmd()
                     .exec();
-            
+
             ObservableList<Network> networkList = FXCollections.observableArrayList(networks);
             networksTable.setItems(networkList);
         } catch (Exception e) {
@@ -619,11 +673,21 @@ public class MainController {
     }
 
     private void clearAllTables() {
-        if (containersTable != null) containersTable.getItems().clear();
-        if (imagesTable != null) imagesTable.getItems().clear();
-        if (volumesTable != null) volumesTable.getItems().clear();
-        if (networksTable != null) networksTable.getItems().clear();
-        if (logsTextArea != null) logsTextArea.clear();
+        if (containersTable != null) {
+            containersTable.getItems().clear();
+        }
+        if (imagesTable != null) {
+            imagesTable.getItems().clear();
+        }
+        if (volumesTable != null) {
+            volumesTable.getItems().clear();
+        }
+        if (networksTable != null) {
+            networksTable.getItems().clear();
+        }
+        if (logsTextArea != null) {
+            logsTextArea.clear();
+        }
     }
 
     private void updateConnectionStatus() {
@@ -662,11 +726,19 @@ public class MainController {
     }
 
     private String formatSize(Long size) {
-        if (size == null) return "0 B";
-        
-        if (size < 1024) return size + " B";
-        if (size < 1024 * 1024) return String.format("%.2f KB", size / 1024.0);
-        if (size < 1024 * 1024 * 1024) return String.format("%.2f MB", size / (1024.0 * 1024));
+        if (size == null) {
+            return "0 B";
+        }
+
+        if (size < 1024) {
+            return size + " B";
+        }
+        if (size < 1024 * 1024) {
+            return String.format("%.2f KB", size / 1024.0);
+        }
+        if (size < 1024 * 1024 * 1024) {
+            return String.format("%.2f MB", size / (1024.0 * 1024));
+        }
         return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
     }
 

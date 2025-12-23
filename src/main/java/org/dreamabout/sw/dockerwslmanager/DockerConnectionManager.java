@@ -10,7 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 public class DockerConnectionManager {
@@ -22,7 +24,7 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Connect using DOCKER_HOST environment variable
+     * Connect using DOCKER_HOST environment variable.
      */
     public boolean connectFromEnvironment() {
         try {
@@ -45,7 +47,7 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Connect using manual IP and port configuration
+     * Connect using manual IP and port configuration.
      */
     public boolean connectManual(String host, int port) {
         try {
@@ -64,7 +66,7 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Auto-discover Docker in WSL using wsl command
+     * Auto-discover Docker in WSL using wsl command.
      */
     public boolean connectAutoDiscover() {
         try {
@@ -88,7 +90,7 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Get WSL IP address using wsl command
+     * Get WSL IP address using wsl command.
      */
     private String getWslIpAddress() {
         try {
@@ -96,7 +98,8 @@ public class DockerConnectionManager {
             ProcessBuilder pb = new ProcessBuilder("wsl", "hostname", "-I");
             Process process = pb.start();
             
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line = reader.readLine();
                 
                 int exitCode = process.waitFor();
@@ -106,14 +109,17 @@ public class DockerConnectionManager {
                     return ips[0];
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             logger.error("Failed to get WSL IP address", e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
         }
         return null;
     }
 
     /**
-     * Connect with a specific Docker client configuration
+     * Connect with a specific Docker client configuration.
      */
     private boolean connectWithConfig(DockerClientConfig config, String connectionString) {
         try {
@@ -144,7 +150,7 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Disconnect from Docker
+     * Disconnect from Docker.
      */
     public void disconnect() {
         if (dockerClient != null) {
@@ -159,28 +165,28 @@ public class DockerConnectionManager {
     }
 
     /**
-     * Check if connected to Docker
+     * Check if connected to Docker.
      */
     public boolean isConnected() {
         return dockerClient != null;
     }
 
     /**
-     * Get the Docker client
+     * Get the Docker client.
      */
     public DockerClient getDockerClient() {
         return dockerClient;
     }
 
     /**
-     * Get current connection string
+     * Get current connection string.
      */
     public String getCurrentConnectionString() {
         return currentConnectionString;
     }
 
     /**
-     * Test connection
+     * Test connection.
      */
     public boolean testConnection() {
         if (dockerClient == null) {
