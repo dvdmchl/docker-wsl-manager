@@ -1,5 +1,5 @@
 {
-  "$comment": "MCP Servers configuration for Gemini CLI",
+  "$comment": "MCP Servers configuration for Cursor AI",
   "$comment2": "Common MCP servers are defined in ../.ai/mcp-servers.json",
   "$ref": "../.ai/mcp-servers.json"
 }
