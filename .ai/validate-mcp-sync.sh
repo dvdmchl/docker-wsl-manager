@@ -14,6 +14,9 @@ if ! command -v jq &> /dev/null; then
   exit 1
 fi
 
+# jq filter to extract mcpServers while excluding all $comment fields
+readonly JQ_FILTER='walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers'
+
 CANONICAL_FILE=".ai/mcp-servers.json"
 AGENT_FILES=(
   ".gemini/settings.json"
@@ -31,7 +34,7 @@ if [ ! -f "$CANONICAL_FILE" ]; then
 fi
 
 # Extract the mcpServers section from canonical file (recursively exclude all $comment fields)
-if ! CANONICAL_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$CANONICAL_FILE" 2>&1); then
+if ! CANONICAL_CONTENT=$(jq "$JQ_FILTER" "$CANONICAL_FILE" 2>&1); then
   echo "❌ Error: Failed to parse $CANONICAL_FILE"
   echo "   Details: $CANONICAL_CONTENT"
   exit 1
@@ -52,7 +55,7 @@ for agent_file in "${AGENT_FILES[@]}"; do
   fi
   
   # Extract mcpServers section from agent file (recursively exclude all $comment fields)
-  if ! AGENT_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$agent_file" 2>&1); then
+  if ! AGENT_CONTENT=$(jq "$JQ_FILTER" "$agent_file" 2>&1); then
     echo "❌ $agent_file has invalid JSON format"
     echo "   Details: $AGENT_CONTENT"
     ALL_MATCH=false
