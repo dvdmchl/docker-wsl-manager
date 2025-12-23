@@ -21,8 +21,8 @@ if [ ! -f "$CANONICAL_FILE" ]; then
   exit 1
 fi
 
-# Extract the mcpServers section from canonical file
-CANONICAL_CONTENT=$(jq '.mcpServers' "$CANONICAL_FILE")
+# Extract the mcpServers section from canonical file (recursively exclude all $comment fields)
+CANONICAL_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$CANONICAL_FILE")
 
 echo "Canonical MCP Servers configuration:"
 echo "$CANONICAL_CONTENT"
@@ -38,8 +38,8 @@ for agent_file in "${AGENT_FILES[@]}"; do
     continue
   fi
   
-  # Extract mcpServers section from agent file (excluding $comment fields)
-  AGENT_CONTENT=$(jq 'del(.mcpServers["$comment"]) | .mcpServers' "$agent_file")
+  # Extract mcpServers section from agent file (recursively exclude all $comment fields)
+  AGENT_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$agent_file")
   
   # Compare configurations
   if [ "$CANONICAL_CONTENT" = "$AGENT_CONTENT" ]; then
