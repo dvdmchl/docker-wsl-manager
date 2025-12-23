@@ -127,7 +127,10 @@ Create `.cline/settings.json`:
 
 To update instructions that apply to all agents:
 1. Edit `.ai/INSTRUCTIONS.md`
-2. All agents automatically benefit from the update
+2. Run the sync script: `.ai/sync-instructions.ps1`
+3. All agent-specific instruction files will be automatically updated
+
+**Why sync is needed**: Some AI agents (like GitHub Copilot CLI) cannot follow file references and need the full content in their instruction files. The sync script maintains DRY by keeping one source file and automatically copying it to all agent-specific files.
 
 ### Updating MCP Server Configuration
 

@@ -18,14 +18,11 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,15 +33,7 @@ public class MainController {
     private DockerConnectionManager connectionManager;
 
     @FXML
-    private TextField hostField;
-    @FXML
-    private TextField portField;
-    @FXML
     private Label connectionStatusLabel;
-    @FXML
-    private Button connectEnvButton;
-    @FXML
-    private Button connectManualButton;
     @FXML
     private Button connectAutoButton;
     @FXML
@@ -127,10 +116,10 @@ public class MainController {
     public void initialize() {
         connectionManager = new DockerConnectionManager();
 
-        // Initialize connection fields
-        hostField.setText("localhost");
-        portField.setText("2375");
         updateConnectionStatus();
+
+        // Auto-connect on startup
+        autoConnectOnStartup();
 
         // Initialize containers table
         if (containerIdColumn != null) {
@@ -191,39 +180,6 @@ public class MainController {
                     new SimpleStringProperty(data.getValue().getDriver()));
             networkScopeColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getScope()));
-        }
-    }
-
-    @FXML
-    private void handleConnectEnvironment() {
-        if (connectionManager.connectFromEnvironment()) {
-            updateConnectionStatus();
-            showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
-                    "Connected to Docker using DOCKER_HOST environment variable.");
-            refreshAll();
-        } else {
-            showAlert(Alert.AlertType.ERROR, "Connection Failed",
-                    "Failed to connect using DOCKER_HOST. Check if the environment variable is set correctly.");
-        }
-    }
-
-    @FXML
-    private void handleConnectManual() {
-        try {
-            String host = hostField.getText().trim();
-            int port = Integer.parseInt(portField.getText().trim());
-
-            if (connectionManager.connectManual(host, port)) {
-                updateConnectionStatus();
-                showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
-                        String.format("Connected to Docker at %s:%d", host, port));
-                refreshAll();
-            } else {
-                showAlert(Alert.AlertType.ERROR, "Connection Failed",
-                        String.format("Failed to connect to Docker at %s:%d", host, port));
-            }
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Invalid Port", "Please enter a valid port number.");
         }
     }
 
@@ -694,16 +650,12 @@ public class MainController {
         if (connectionManager.isConnected()) {
             connectionStatusLabel.setText("Connected: " + connectionManager.getCurrentConnectionString());
             connectionStatusLabel.setStyle("-fx-text-fill: green;");
-            connectEnvButton.setDisable(true);
-            connectManualButton.setDisable(true);
             connectAutoButton.setDisable(true);
             disconnectButton.setDisable(false);
             mainTabPane.setDisable(false);
         } else {
             connectionStatusLabel.setText("Not Connected");
             connectionStatusLabel.setStyle("-fx-text-fill: red;");
-            connectEnvButton.setDisable(false);
-            connectManualButton.setDisable(false);
             connectAutoButton.setDisable(false);
             disconnectButton.setDisable(true);
             mainTabPane.setDisable(true);
@@ -748,5 +700,32 @@ public class MainController {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void autoConnectOnStartup() {
+        // Try auto-discover connection in background
+        new Thread(() -> {
+            logger.info("Attempting auto-connect on startup...");
+            
+            if (connectionManager.connectAutoDiscover()) {
+                Platform.runLater(() -> {
+                    updateConnectionStatus();
+                    refreshAll();
+                    logger.info("Auto-connected to Docker successfully");
+                });
+            } else {
+                Platform.runLater(() -> {
+                    updateConnectionStatus();
+                    showAlert(Alert.AlertType.ERROR, "Docker Connection Failed",
+                            "Could not automatically connect to Docker in WSL.\n\n" +
+                            "Please ensure:\n" +
+                            "- WSL is running\n" +
+                            "- Docker is installed and running in WSL\n" +
+                            "- Docker daemon is listening on port 2375\n\n" +
+                            "You can use the 'Connect / Reconnect' button to retry.");
+                    logger.warn("Failed to auto-connect to Docker on startup");
+                });
+            }
+        }).start();
     }
 }
