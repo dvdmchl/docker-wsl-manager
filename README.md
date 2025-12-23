@@ -144,11 +144,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### AI Agent Support
-
-This project is configured to work with multiple AI coding agents including:
-- Google Gemini CLI
-- GitHub Copilot
-- Cursor AI
-- And other AI agents can be easily added
-
-See [AI_SETUP.md](AI_SETUP.md) for details on the AI agent configuration and how to add support for new agents.
+This project is configured to work with Gemini AI coding agent.
