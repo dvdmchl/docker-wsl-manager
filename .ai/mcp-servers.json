@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema",
+  "$comment": "Common MCP (Model Context Protocol) server configurations for all AI agents",
   "mcpServers": {
-    "$comment": "Common MCP servers are defined in ../.ai/mcp-servers.json. Copy the content from that file here.",
     "github": {
       "$comment": "GitHub MCP server configuration. Verify the httpUrl is correct for your environment.",
       "httpUrl": "https://api.githubcopilot.com/mcp/",
