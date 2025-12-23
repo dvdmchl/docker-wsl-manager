@@ -19,16 +19,28 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableView;
+import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
+import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
+import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
     private static final int LOGS_TAB_INDEX = 4;
+    private static final String UNGROUPED_LABEL = "Ungrouped";
 
     private DockerConnectionManager connectionManager;
 
@@ -44,15 +56,15 @@ public class MainController {
 
     // Containers tab
     @FXML
-    private TableView<Container> containersTable;
+    private TreeTableView<ContainerViewItem> containersTable;
     @FXML
-    private TableColumn<Container, String> containerIdColumn;
+    private TreeTableColumn<ContainerViewItem, String> containerIdColumn;
     @FXML
-    private TableColumn<Container, String> containerNameColumn;
+    private TreeTableColumn<ContainerViewItem, String> containerNameColumn;
     @FXML
-    private TableColumn<Container, String> containerImageColumn;
+    private TreeTableColumn<ContainerViewItem, String> containerImageColumn;
     @FXML
-    private TableColumn<Container, String> containerStatusColumn;
+    private TreeTableColumn<ContainerViewItem, String> containerStatusColumn;
     @FXML
     private Button startContainerButton;
     @FXML
@@ -68,15 +80,15 @@ public class MainController {
 
     // Images tab
     @FXML
-    private TableView<Image> imagesTable;
+    private TreeTableView<ImageViewItem> imagesTable;
     @FXML
-    private TableColumn<Image, String> imageIdColumn;
+    private TreeTableColumn<ImageViewItem, String> imageIdColumn;
     @FXML
-    private TableColumn<Image, String> imageRepoColumn;
+    private TreeTableColumn<ImageViewItem, String> imageRepoColumn;
     @FXML
-    private TableColumn<Image, String> imageTagColumn;
+    private TreeTableColumn<ImageViewItem, String> imageTagColumn;
     @FXML
-    private TableColumn<Image, String> imageSizeColumn;
+    private TreeTableColumn<ImageViewItem, String> imageSizeColumn;
     @FXML
     private Button removeImageButton;
     @FXML
@@ -84,13 +96,13 @@ public class MainController {
 
     // Volumes tab
     @FXML
-    private TableView<InspectVolumeResponse> volumesTable;
+    private TreeTableView<VolumeViewItem> volumesTable;
     @FXML
-    private TableColumn<InspectVolumeResponse, String> volumeNameColumn;
+    private TreeTableColumn<VolumeViewItem, String> volumeNameColumn;
     @FXML
-    private TableColumn<InspectVolumeResponse, String> volumeDriverColumn;
+    private TreeTableColumn<VolumeViewItem, String> volumeDriverColumn;
     @FXML
-    private TableColumn<InspectVolumeResponse, String> volumeMountpointColumn;
+    private TreeTableColumn<VolumeViewItem, String> volumeMountpointColumn;
     @FXML
     private Button removeVolumeButton;
 
@@ -122,51 +134,92 @@ public class MainController {
         autoConnectOnStartup();
 
         // Initialize containers table
-        if (containerIdColumn != null) {
-            containerIdColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getId()
-                            .substring(0, Math.min(12, data.getValue().getId().length()))));
+        if (containerNameColumn != null) {
             containerNameColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(getContainerName(data.getValue())));
-            containerImageColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getImage()));
-            containerStatusColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getStatus()));
+                    new SimpleStringProperty(data.getValue().getValue().getName()));
+            
+            containerIdColumn.setCellValueFactory(data -> {
+                ContainerViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(item.getContainer().getId()
+                        .substring(0, Math.min(12, item.getContainer().getId().length())));
+            });
+            
+            containerImageColumn.setCellValueFactory(data -> {
+                ContainerViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(item.getContainer().getImage());
+            });
+            
+            containerStatusColumn.setCellValueFactory(data -> {
+                ContainerViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(item.getContainer().getStatus());
+            });
         }
 
         // Initialize images table
-        if (imageIdColumn != null) {
-            imageIdColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getId()
-                            .replace("sha256:", "").substring(0, 12)));
-            imageRepoColumn.setCellValueFactory(data -> {
-                String[] repoTags = data.getValue().getRepoTags();
-                if (repoTags != null && repoTags.length > 0) {
-                    String[] parts = repoTags[0].split(":");
-                    return new SimpleStringProperty(parts.length > 0 ? parts[0] : "");
+        if (imageRepoColumn != null) {
+            imageRepoColumn.setCellValueFactory(data -> 
+                    new SimpleStringProperty(data.getValue().getValue().getName()));
+            
+            imageIdColumn.setCellValueFactory(data -> {
+                ImageViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
                 }
-                return new SimpleStringProperty("<none>");
+                return new SimpleStringProperty(item.getImage().getId()
+                        .replace("sha256:", "").substring(0, 12));
             });
+            
             imageTagColumn.setCellValueFactory(data -> {
-                String[] repoTags = data.getValue().getRepoTags();
+                ImageViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                String[] repoTags = item.getImage().getRepoTags();
                 if (repoTags != null && repoTags.length > 0) {
                     String[] parts = repoTags[0].split(":");
                     return new SimpleStringProperty(parts.length > 1 ? parts[1] : "latest");
                 }
                 return new SimpleStringProperty("<none>");
             });
-            imageSizeColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(formatSize(data.getValue().getSize())));
+            
+            imageSizeColumn.setCellValueFactory(data -> {
+                ImageViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(formatSize(item.getImage().getSize()));
+            });
         }
 
         // Initialize volumes table
         if (volumeNameColumn != null) {
             volumeNameColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getName()));
-            volumeDriverColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getDriver()));
-            volumeMountpointColumn.setCellValueFactory(data ->
-                    new SimpleStringProperty(data.getValue().getMountpoint()));
+                    new SimpleStringProperty(data.getValue().getValue().getName()));
+            
+            volumeDriverColumn.setCellValueFactory(data -> {
+                VolumeViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(item.getVolume().getDriver());
+            });
+            
+            volumeMountpointColumn.setCellValueFactory(data -> {
+                VolumeViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(item.getVolume().getMountpoint());
+            });
         }
 
         // Initialize networks table
@@ -210,7 +263,7 @@ public class MainController {
 
     @FXML
     private void handleStartContainer() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to start.");
             return;
@@ -228,7 +281,7 @@ public class MainController {
 
     @FXML
     private void handleStopContainer() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to stop.");
             return;
@@ -246,7 +299,7 @@ public class MainController {
 
     @FXML
     private void handleRestartContainer() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to restart.");
             return;
@@ -264,7 +317,7 @@ public class MainController {
 
     @FXML
     private void handleRemoveContainer() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to remove.");
             return;
@@ -290,7 +343,7 @@ public class MainController {
 
     @FXML
     private void handleViewLogs() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to view logs.");
             return;
@@ -369,7 +422,7 @@ public class MainController {
 
     @FXML
     private void handleAttachConsole() {
-        Container selected = containersTable.getSelectionModel().getSelectedItem();
+        Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to attach.");
             return;
@@ -459,7 +512,7 @@ public class MainController {
 
     @FXML
     private void handleRemoveImage() {
-        Image selected = imagesTable.getSelectionModel().getSelectedItem();
+        Image selected = getSelectedImage();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select an image to remove.");
             return;
@@ -490,7 +543,7 @@ public class MainController {
 
     @FXML
     private void handleRemoveVolume() {
-        InspectVolumeResponse selected = volumesTable.getSelectionModel().getSelectedItem();
+        InspectVolumeResponse selected = getSelectedVolume();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a volume to remove.");
             return;
@@ -558,8 +611,39 @@ public class MainController {
                     .withShowAll(true)
                     .exec();
 
-            ObservableList<Container> containerList = FXCollections.observableArrayList(containers);
-            containersTable.setItems(containerList);
+            // Group containers
+            Map<String, List<Container>> grouped = new TreeMap<>();
+            List<Container> ungrouped = new ArrayList<>();
+
+            for (Container c : containers) {
+                String project = null;
+                if (c.getLabels() != null) {
+                    project = c.getLabels().get("com.docker.compose.project");
+                }
+                
+                if (project != null && !project.isEmpty()) {
+                    grouped.computeIfAbsent(project, k -> new ArrayList<>()).add(c);
+                } else {
+                    ungrouped.add(c);
+                }
+            }
+            if (!ungrouped.isEmpty()) {
+                grouped.put(UNGROUPED_LABEL, ungrouped);
+            }
+
+            TreeItem<ContainerViewItem> root = new TreeItem<>(new ContainerViewItem("Root"));
+            root.setExpanded(true);
+
+            for (Map.Entry<String, List<Container>> entry : grouped.entrySet()) {
+                TreeItem<ContainerViewItem> groupItem = new TreeItem<>(new ContainerViewItem(entry.getKey()));
+                groupItem.setExpanded(true);
+                for (Container c : entry.getValue()) {
+                    groupItem.getChildren().add(new TreeItem<>(new ContainerViewItem(c, getContainerName(c))));
+                }
+                root.getChildren().add(groupItem);
+            }
+
+            containersTable.setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to refresh containers", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh containers: " + e.getMessage());
@@ -576,8 +660,55 @@ public class MainController {
                     .listImagesCmd()
                     .exec();
 
-            ObservableList<Image> imageList = FXCollections.observableArrayList(images);
-            imagesTable.setItems(imageList);
+            // Group images
+            Map<String, List<Image>> grouped = new TreeMap<>();
+            List<Image> ungrouped = new ArrayList<>();
+
+            for (Image img : images) {
+                String groupName = null;
+                // Try compose project label first
+                if (img.getLabels() != null) {
+                    groupName = img.getLabels().get("com.docker.compose.project");
+                }
+                // Fallback to repository name
+                if (groupName == null && img.getRepoTags() != null && img.getRepoTags().length > 0) {
+                    String[] parts = img.getRepoTags()[0].split(":");
+                    if (parts.length > 0 && !parts[0].isEmpty()) {
+                        groupName = parts[0];
+                    }
+                }
+
+                if (groupName != null) {
+                    grouped.computeIfAbsent(groupName, k -> new ArrayList<>()).add(img);
+                } else {
+                    ungrouped.add(img);
+                }
+            }
+            if (!ungrouped.isEmpty()) {
+                grouped.put(UNGROUPED_LABEL, ungrouped);
+            }
+
+            TreeItem<ImageViewItem> root = new TreeItem<>(new ImageViewItem("Root"));
+            root.setExpanded(true);
+
+            for (Map.Entry<String, List<Image>> entry : grouped.entrySet()) {
+                TreeItem<ImageViewItem> groupItem = new TreeItem<>(new ImageViewItem(entry.getKey()));
+                groupItem.setExpanded(true);
+                for (Image img : entry.getValue()) {
+                    String tagName = "<none>";
+                    if (img.getRepoTags() != null && img.getRepoTags().length > 0) {
+                        // Use full repo:tag or just tag? Table shows repo and tag separately.
+                        // Name in tree can be repo:tag or just tag if grouped by repo.
+                        // Let's use repo:tag for clarity or just tag if parent is repo.
+                        // Since we grouped by repo, let's just show tag or full name if it was grouped by project.
+                        tagName = img.getRepoTags()[0];
+                    }
+                    groupItem.getChildren().add(new TreeItem<>(new ImageViewItem(img, tagName)));
+                }
+                root.getChildren().add(groupItem);
+            }
+
+            imagesTable.setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to refresh images", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh images: " + e.getMessage());
@@ -595,8 +726,39 @@ public class MainController {
                     .exec()
                     .getVolumes();
 
-            ObservableList<InspectVolumeResponse> volumeList = FXCollections.observableArrayList(volumes);
-            volumesTable.setItems(volumeList);
+            // Group volumes
+            Map<String, List<InspectVolumeResponse>> grouped = new TreeMap<>();
+            List<InspectVolumeResponse> ungrouped = new ArrayList<>();
+
+            for (InspectVolumeResponse vol : volumes) {
+                String project = null;
+                if (vol.getLabels() != null) {
+                    project = vol.getLabels().get("com.docker.compose.project");
+                }
+
+                if (project != null && !project.isEmpty()) {
+                    grouped.computeIfAbsent(project, k -> new ArrayList<>()).add(vol);
+                } else {
+                    ungrouped.add(vol);
+                }
+            }
+            if (!ungrouped.isEmpty()) {
+                grouped.put(UNGROUPED_LABEL, ungrouped);
+            }
+
+            TreeItem<VolumeViewItem> root = new TreeItem<>(new VolumeViewItem("Root"));
+            root.setExpanded(true);
+
+            for (Map.Entry<String, List<InspectVolumeResponse>> entry : grouped.entrySet()) {
+                TreeItem<VolumeViewItem> groupItem = new TreeItem<>(new VolumeViewItem(entry.getKey()));
+                groupItem.setExpanded(true);
+                for (InspectVolumeResponse vol : entry.getValue()) {
+                    groupItem.getChildren().add(new TreeItem<>(new VolumeViewItem(vol, vol.getName())));
+                }
+                root.getChildren().add(groupItem);
+            }
+
+            volumesTable.setRoot(root);
         } catch (Exception e) {
             logger.error("Failed to refresh volumes", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh volumes: " + e.getMessage());
@@ -630,13 +792,13 @@ public class MainController {
 
     private void clearAllTables() {
         if (containersTable != null) {
-            containersTable.getItems().clear();
+            containersTable.setRoot(null);
         }
         if (imagesTable != null) {
-            imagesTable.getItems().clear();
+            imagesTable.setRoot(null);
         }
         if (volumesTable != null) {
-            volumesTable.getItems().clear();
+            volumesTable.setRoot(null);
         }
         if (networksTable != null) {
             networksTable.getItems().clear();
@@ -672,9 +834,34 @@ public class MainController {
 
     private String getContainerName(Container container) {
         if (container.getNames() != null && container.getNames().length > 0) {
-            return container.getNames()[0];
+            String name = container.getNames()[0];
+            return name.startsWith("/") ? name.substring(1) : name;
         }
         return container.getId().substring(0, Math.min(12, container.getId().length()));
+    }
+
+    private Container getSelectedContainer() {
+        TreeItem<ContainerViewItem> selected = containersTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.getValue().isGroup()) {
+            return null;
+        }
+        return selected.getValue().getContainer();
+    }
+
+    private Image getSelectedImage() {
+        TreeItem<ImageViewItem> selected = imagesTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.getValue().isGroup()) {
+            return null;
+        }
+        return selected.getValue().getImage();
+    }
+
+    private InspectVolumeResponse getSelectedVolume() {
+        TreeItem<VolumeViewItem> selected = volumesTable.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.getValue().isGroup()) {
+            return null;
+        }
+        return selected.getValue().getVolume();
     }
 
     private String formatSize(Long size) {
@@ -717,12 +904,12 @@ public class MainController {
                 Platform.runLater(() -> {
                     updateConnectionStatus();
                     showAlert(Alert.AlertType.ERROR, "Docker Connection Failed",
-                            "Could not automatically connect to Docker in WSL.\n\n" +
-                            "Please ensure:\n" +
-                            "- WSL is running\n" +
-                            "- Docker is installed and running in WSL\n" +
-                            "- Docker daemon is listening on port 2375\n\n" +
-                            "You can use the 'Connect / Reconnect' button to retry.");
+                            "Could not automatically connect to Docker in WSL.\n\n" 
+                            + "Please ensure:\n" 
+                            + "- WSL is running\n" 
+                            + "- Docker is installed and running in WSL\n" 
+                            + "- Docker daemon is listening on port 2375\n\n" 
+                            + "You can use the 'Connect / Reconnect' button to retry.");
                     logger.warn("Failed to auto-connect to Docker on startup");
                 });
             }

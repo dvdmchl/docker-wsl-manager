@@ -29,14 +29,14 @@
             <Tab text="Containers">
                 <BorderPane>
                     <center>
-                        <TableView fx:id="containersTable">
+                        <TreeTableView fx:id="containersTable" showRoot="false">
                             <columns>
-                                <TableColumn fx:id="containerIdColumn" text="ID" prefWidth="100"/>
-                                <TableColumn fx:id="containerNameColumn" text="Name" prefWidth="200"/>
-                                <TableColumn fx:id="containerImageColumn" text="Image" prefWidth="250"/>
-                                <TableColumn fx:id="containerStatusColumn" text="Status" prefWidth="300"/>
+                                <TreeTableColumn fx:id="containerNameColumn" text="Name" prefWidth="200"/>
+                                <TreeTableColumn fx:id="containerIdColumn" text="ID" prefWidth="100"/>
+                                <TreeTableColumn fx:id="containerImageColumn" text="Image" prefWidth="250"/>
+                                <TreeTableColumn fx:id="containerStatusColumn" text="Status" prefWidth="300"/>
                             </columns>
-                        </TableView>
+                        </TreeTableView>
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
@@ -56,14 +56,14 @@
             <Tab text="Images">
                 <BorderPane>
                     <center>
-                        <TableView fx:id="imagesTable">
+                        <TreeTableView fx:id="imagesTable" showRoot="false">
                             <columns>
-                                <TableColumn fx:id="imageIdColumn" text="ID" prefWidth="120"/>
-                                <TableColumn fx:id="imageRepoColumn" text="Repository" prefWidth="300"/>
-                                <TableColumn fx:id="imageTagColumn" text="Tag" prefWidth="150"/>
-                                <TableColumn fx:id="imageSizeColumn" text="Size" prefWidth="150"/>
+                                <TreeTableColumn fx:id="imageRepoColumn" text="Repository" prefWidth="300"/>
+                                <TreeTableColumn fx:id="imageIdColumn" text="ID" prefWidth="120"/>
+                                <TreeTableColumn fx:id="imageTagColumn" text="Tag" prefWidth="150"/>
+                                <TreeTableColumn fx:id="imageSizeColumn" text="Size" prefWidth="150"/>
                             </columns>
-                        </TableView>
+                        </TreeTableView>
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
@@ -79,13 +79,13 @@
             <Tab text="Volumes">
                 <BorderPane>
                     <center>
-                        <TableView fx:id="volumesTable">
+                        <TreeTableView fx:id="volumesTable" showRoot="false">
                             <columns>
-                                <TableColumn fx:id="volumeNameColumn" text="Name" prefWidth="300"/>
-                                <TableColumn fx:id="volumeDriverColumn" text="Driver" prefWidth="150"/>
-                                <TableColumn fx:id="volumeMountpointColumn" text="Mountpoint" prefWidth="400"/>
+                                <TreeTableColumn fx:id="volumeNameColumn" text="Name" prefWidth="300"/>
+                                <TreeTableColumn fx:id="volumeDriverColumn" text="Driver" prefWidth="150"/>
+                                <TreeTableColumn fx:id="volumeMountpointColumn" text="Mountpoint" prefWidth="400"/>
                             </columns>
-                        </TableView>
+                        </TreeTableView>
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
