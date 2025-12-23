@@ -3,6 +3,7 @@
   "mcpServers": {
     "$comment": "Common MCP servers are defined in ../.ai/mcp-servers.json. Copy the content from that file here.",
     "github": {
+      "$comment": "GitHub MCP server configuration. Verify the httpUrl is correct for your environment.",
       "httpUrl": "https://api.githubcopilot.com/mcp/",
       "headers": {
         "Authorization": "Bearer $GITHUB_MCP_PAT"

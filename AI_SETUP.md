@@ -138,8 +138,12 @@ To update MCP servers for all agents:
    - `.github/copilot/settings.json`
    - `.cursor/settings.json`
    - Any other agent-specific settings files
+3. Run the validation script to ensure all configurations are in sync:
+   ```bash
+   ./.ai/validate-mcp-sync.sh
+   ```
 
-**Note**: JSON doesn't support automatic file inclusion, so the content needs to be copied manually. However, having a single source file (`.ai/mcp-servers.json`) ensures consistency and makes it clear what the canonical configuration should be.
+**Note**: JSON doesn't support automatic file inclusion, so the content needs to be copied manually. However, having a single source file (`.ai/mcp-servers.json`) ensures consistency and makes it clear what the canonical configuration should be. The validation script helps catch any synchronization issues.
 
 ### Adding Agent-Specific Instructions
 
