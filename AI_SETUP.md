@@ -48,6 +48,11 @@ This file includes:
 - GitHub MCP server configuration
 - Any other shared MCP servers
 
+**Note**: Since JSON doesn't support file inclusion natively, each agent's `settings.json` contains a copy of the common MCP servers with a comment referencing the source. When updating MCP servers:
+1. Update the common file `.ai/mcp-servers.json` first
+2. Copy the updated content to each agent's `settings.json` file
+3. This maintains a single source of truth while ensuring compatibility with JSON parsers
+
 ### 3. Agent-Specific Configurations
 
 Each AI agent has its own directory with two files:
@@ -103,8 +108,16 @@ For general project information, please refer to: [Common AI Agent Instructions]
 Create `.cline/settings.json`:
 ```json
 {
-  "$comment": "MCP Servers configuration for Cline",
-  "$ref": "../.ai/mcp-servers.json"
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "mcpServers": {
+    "$comment": "Common MCP servers are defined in ../.ai/mcp-servers.json. Copy the content from that file here.",
+    "github": {
+      "httpUrl": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer $GITHUB_MCP_PAT"
+      }
+    }
+  }
 }
 ```
 
@@ -119,8 +132,14 @@ To update instructions that apply to all agents:
 ### Updating MCP Server Configuration
 
 To update MCP servers for all agents:
-1. Edit `.ai/mcp-servers.json`
-2. All agents automatically use the updated configuration
+1. Edit `.ai/mcp-servers.json` with the new configuration
+2. Copy the updated `mcpServers` content to each agent's `settings.json` file:
+   - `.gemini/settings.json`
+   - `.github/copilot/settings.json`
+   - `.cursor/settings.json`
+   - Any other agent-specific settings files
+
+**Note**: JSON doesn't support automatic file inclusion, so the content needs to be copied manually. However, having a single source file (`.ai/mcp-servers.json`) ensures consistency and makes it clear what the canonical configuration should be.
 
 ### Adding Agent-Specific Instructions
 

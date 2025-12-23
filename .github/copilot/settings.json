@@ -1,5 +1,12 @@
 {
-  "$comment": "MCP Servers configuration for GitHub Copilot",
-  "$comment2": "Common MCP servers are defined in ../../.ai/mcp-servers.json",
-  "$ref": "../../.ai/mcp-servers.json"
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "mcpServers": {
+    "$comment": "Common MCP servers are defined in ../../.ai/mcp-servers.json. Copy the content from that file here.",
+    "github": {
+      "httpUrl": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer $GITHUB_MCP_PAT"
+      }
+    }
+  }
 }
