@@ -1,9 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Validation script to ensure all agent MCP server configurations are in sync
 # with the canonical .ai/mcp-servers.json file
 
-set -e
+set -euo pipefail
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+  echo "❌ Error: jq is not installed. Please install jq to use this script."
+  echo "   On Ubuntu/Debian: sudo apt-get install jq"
+  echo "   On macOS: brew install jq"
+  echo "   On Windows: choco install jq or download from https://stedolan.github.io/jq/"
+  exit 1
+fi
 
 CANONICAL_FILE=".ai/mcp-servers.json"
 AGENT_FILES=(
@@ -22,7 +31,11 @@ if [ ! -f "$CANONICAL_FILE" ]; then
 fi
 
 # Extract the mcpServers section from canonical file (recursively exclude all $comment fields)
-CANONICAL_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$CANONICAL_FILE")
+if ! CANONICAL_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$CANONICAL_FILE" 2>&1); then
+  echo "❌ Error: Failed to parse $CANONICAL_FILE"
+  echo "   Details: $CANONICAL_CONTENT"
+  exit 1
+fi
 
 echo "Canonical MCP Servers configuration:"
 echo "$CANONICAL_CONTENT"
@@ -39,7 +52,12 @@ for agent_file in "${AGENT_FILES[@]}"; do
   fi
   
   # Extract mcpServers section from agent file (recursively exclude all $comment fields)
-  AGENT_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$agent_file")
+  if ! AGENT_CONTENT=$(jq 'walk(if type == "object" then del(.["$comment"]) else . end) | .mcpServers' "$agent_file" 2>&1); then
+    echo "❌ $agent_file has invalid JSON format"
+    echo "   Details: $AGENT_CONTENT"
+    ALL_MATCH=false
+    continue
+  fi
   
   # Compare configurations
   if [ "$CANONICAL_CONTENT" = "$AGENT_CONTENT" ]; then
