@@ -177,10 +177,11 @@ public class MainController {
                         setText(status);
                         // Check if status indicates running (typically starts with "Up")
                         // or stopped/exited (typically starts with "Exited" or "Created")
-                        if (status.toLowerCase().startsWith("up")) {
+                        String lowerStatus = status.toLowerCase();
+                        if (lowerStatus.startsWith("up")) {
                             setStyle("-fx-text-fill: green;");
-                        } else if (status.toLowerCase().startsWith("exited")
-                                   || status.toLowerCase().startsWith("created")) {
+                        } else if (lowerStatus.startsWith("exited")
+                                   || lowerStatus.startsWith("created")) {
                             setStyle("-fx-text-fill: red;");
                         } else {
                             setStyle("");
