@@ -20,6 +20,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
+import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableView;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
@@ -161,6 +162,32 @@ public class MainController {
                     return new SimpleStringProperty("");
                 }
                 return new SimpleStringProperty(item.getContainer().getStatus());
+            });
+            
+            // Add custom cell factory to color status based on container state
+            containerStatusColumn.setCellFactory(column -> new TreeTableCell<ContainerViewItem, String>() {
+                @Override
+                protected void updateItem(String status, boolean empty) {
+                    super.updateItem(status, empty);
+                    
+                    if (empty || status == null || status.isEmpty()) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(status);
+                        // Check if status indicates running (typically starts with "Up")
+                        // or stopped/exited (typically starts with "Exited" or "Created")
+                        String lowerStatus = status.toLowerCase();
+                        if (lowerStatus.startsWith("up")) {
+                            setStyle("-fx-text-fill: green;");
+                        } else if (lowerStatus.startsWith("exited")
+                                   || lowerStatus.startsWith("created")) {
+                            setStyle("-fx-text-fill: red;");
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
             });
         }
 
