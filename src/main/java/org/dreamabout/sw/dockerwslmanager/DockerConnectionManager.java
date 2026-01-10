@@ -128,7 +128,8 @@ public class DockerConnectionManager {
                     .sslConfig(config.getSSLConfig())
                     .maxConnections(100)
                     .connectionTimeout(Duration.ofSeconds(30))
-                    .responseTimeout(Duration.ofSeconds(45))
+                    // Use longer timeout for log streaming operations which may have long idle periods
+                    .responseTimeout(Duration.ofMinutes(5))
                     .build();
             
             dockerClient = DockerClientBuilder.getInstance(config)
