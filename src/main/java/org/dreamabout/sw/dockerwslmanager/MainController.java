@@ -1303,6 +1303,12 @@ public class MainController {
             }
 
             containersTable.setRoot(root);
+            
+            // Focus on first item if available
+            if (!root.getChildren().isEmpty()) {
+                containersTable.getSelectionModel().select(0);
+                containersTable.requestFocus();
+            }
         } catch (RuntimeException e) {
             logger.error("Failed to refresh containers", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh containers: " + e.getMessage());
