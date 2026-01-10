@@ -2,6 +2,7 @@ package org.dreamabout.sw.dockerwslmanager;
 
 import com.github.dockerjava.api.command.InspectVolumeResponse;
 import com.github.dockerjava.api.model.Container;
+import com.github.dockerjava.api.model.ContainerPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Network;
@@ -13,6 +14,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -23,6 +25,7 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.layout.FlowPane;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -64,6 +67,8 @@ public class MainController {
     private TreeTableColumn<ContainerViewItem, String> containerNameColumn;
     @FXML
     private TreeTableColumn<ContainerViewItem, String> containerImageColumn;
+    @FXML
+    private TreeTableColumn<ContainerViewItem, String> containerPortsColumn;
     @FXML
     private TreeTableColumn<ContainerViewItem, String> containerStatusColumn;
     @FXML
@@ -154,6 +159,64 @@ public class MainController {
                     return new SimpleStringProperty("");
                 }
                 return new SimpleStringProperty(item.getContainer().getImage());
+            });
+            
+            // Ports column - will be rendered as hyperlinks in cell factory
+            containerPortsColumn.setCellValueFactory(data -> {
+                ContainerViewItem item = data.getValue().getValue();
+                if (item.isGroup()) {
+                    return new SimpleStringProperty("");
+                }
+                return new SimpleStringProperty(formatPorts(item.getContainer()));
+            });
+            
+            // Custom cell factory to render ports as clickable hyperlinks
+            containerPortsColumn.setCellFactory(column -> new TreeTableCell<ContainerViewItem, String>() {
+                @Override
+                protected void updateItem(String portsString, boolean empty) {
+                    super.updateItem(portsString, empty);
+                    
+                    if (empty || portsString == null || portsString.isEmpty()) {
+                        setGraphic(null);
+                        setText(null);
+                    } else {
+                        // Get the container item to check if it's running
+                        TreeItem<ContainerViewItem> treeItem = getTreeTableRow().getTreeItem();
+                        if (treeItem != null && !treeItem.getValue().isGroup()) {
+                            Container container = treeItem.getValue().getContainer();
+                            boolean isRunning = container.getState() != null 
+                                    && container.getState().equalsIgnoreCase("running");
+                            
+                            if (isRunning && container.getPorts() != null && container.getPorts().length > 0) {
+                                // Create a FlowPane to hold hyperlinks
+                                FlowPane flowPane = new FlowPane();
+                                flowPane.setHgap(10);
+                                flowPane.setVgap(5);
+                                
+                                for (ContainerPort port : container.getPorts()) {
+                                    if (port.getPublicPort() != null) {
+                                        String url = buildPortUrl(port);
+                                        Hyperlink hyperlink = new Hyperlink(formatPortDisplay(port));
+                                        hyperlink.setOnAction(e -> openInBrowser(url));
+                                        hyperlink.setStyle("-fx-text-fill: blue; -fx-underline: true;");
+                                        flowPane.getChildren().add(hyperlink);
+                                    }
+                                }
+                                
+                                setGraphic(flowPane);
+                                setText(null);
+                            } else {
+                                // Container not running or no ports - show as plain text
+                                setGraphic(null);
+                                setText(portsString);
+                            }
+                        } else {
+                            // Group item - show as plain text
+                            setGraphic(null);
+                            setText(portsString);
+                        }
+                    }
+                }
             });
             
             containerStatusColumn.setCellValueFactory(data -> {
@@ -1181,5 +1244,109 @@ public class MainController {
                 });
             }
         }).start();
+    }
+
+    /**
+     * Format container ports for display.
+     * Returns a string representation of all exposed ports.
+     */
+    private String formatPorts(Container container) {
+        if (container.getPorts() == null || container.getPorts().length == 0) {
+            return "";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        for (ContainerPort port : container.getPorts()) {
+            if (sb.length() > 0) {
+                sb.append(", ");
+            }
+            
+            if (port.getPublicPort() != null) {
+                String ip = port.getIp();
+                if (ip == null || ip.isEmpty()) {
+                    ip = "0.0.0.0";
+                }
+                sb.append(ip).append(":").append(port.getPublicPort());
+                sb.append("->").append(port.getPrivatePort());
+            } else {
+                sb.append(port.getPrivatePort());
+            }
+            
+            if (port.getType() != null) {
+                sb.append("/").append(port.getType());
+            }
+        }
+        
+        return sb.toString();
+    }
+
+    /**
+     * Format a single port for display in a hyperlink.
+     */
+    private String formatPortDisplay(ContainerPort port) {
+        StringBuilder sb = new StringBuilder();
+        
+        if (port.getPublicPort() != null) {
+            String ip = port.getIp();
+            if (ip == null || ip.isEmpty()) {
+                ip = "0.0.0.0";
+            }
+            sb.append(ip).append(":").append(port.getPublicPort());
+            sb.append("->").append(port.getPrivatePort());
+        } else {
+            sb.append(port.getPrivatePort());
+        }
+        
+        if (port.getType() != null) {
+            sb.append("/").append(port.getType());
+        }
+        
+        return sb.toString();
+    }
+
+    /**
+     * Build a URL from a container port.
+     */
+    private String buildPortUrl(ContainerPort port) {
+        if (port.getPublicPort() == null) {
+            return null;
+        }
+        
+        String ip = port.getIp();
+        if (ip == null || ip.isEmpty() || ip.equals("0.0.0.0")) {
+            ip = "localhost";
+        }
+        
+        // Use http for common ports, or just construct with http by default
+        String protocol = "http";
+        if (port.getPublicPort() == 443 || port.getPublicPort() == 8443) {
+            protocol = "https";
+        }
+        
+        return protocol + "://" + ip + ":" + port.getPublicPort();
+    }
+
+    /**
+     * Open a URL in the default system browser.
+     */
+    private void openInBrowser(String url) {
+        if (url == null || url.isEmpty()) {
+            return;
+        }
+        
+        try {
+            // Use Java Desktop API to open URL in default browser
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    desktop.browse(new java.net.URI(url));
+                    logger.info("Opened URL in browser: {}", url);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to open URL in browser: {}", url, e);
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to open URL in browser: " + e.getMessage());
+        }
     }
 }
