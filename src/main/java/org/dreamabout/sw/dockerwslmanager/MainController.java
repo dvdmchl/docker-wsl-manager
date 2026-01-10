@@ -798,34 +798,6 @@ public class MainController {
     }
 
     private void startLogStreaming(TextArea logsTextArea, String containerId, javafx.scene.control.Tab logTab) {
-        // Flag to track if user has scrolled away from bottom
-        final boolean[] autoScroll = {true};
-        final double[] lastScrollTop = {0.0};
-        
-        // Monitor scroll position changes
-        logsTextArea.scrollTopProperty().addListener((obs, oldVal, newVal) -> {
-            double currentScroll = newVal.doubleValue();
-            double previousScroll = lastScrollTop[0];
-            
-            // If user scrolled up manually (scroll decreased), disable auto-scroll
-            if (currentScroll < previousScroll - 1.0) {
-                autoScroll[0] = false;
-            }
-            // If user scrolled to near the bottom, re-enable auto-scroll
-            else if (currentScroll > previousScroll) {
-                // Check if we're close to the bottom
-                double textLength = logsTextArea.getLength();
-                if (textLength > 0) {
-                    // Approximate check - if scroll position is very high, we're near bottom
-                    if (currentScroll > textLength * 0.95 || currentScroll >= Double.MAX_VALUE / 2) {
-                        autoScroll[0] = true;
-                    }
-                }
-            }
-            
-            lastScrollTop[0] = currentScroll;
-        });
-        
         Thread logThread = new Thread(() -> {
             try {
                 StringBuilder logs = new StringBuilder();
@@ -843,15 +815,14 @@ public class MainController {
                             if (now - lastUpdate > 200) {
                                 String currentLogs = logs.toString();
                                 Platform.runLater(() -> {
-                                    double previousScrollTop = logsTextArea.getScrollTop();
+                                    // Check if scrollbar is at the bottom before updating
+                                    boolean wasAtBottom = isTextAreaAtBottom(logsTextArea);
+                                    
                                     logsTextArea.setText(currentLogs);
-                                    // Auto-scroll to bottom if enabled
-                                    if (autoScroll[0]) {
+                                    
+                                    // Auto-scroll to bottom if it was at bottom before update
+                                    if (wasAtBottom) {
                                         logsTextArea.setScrollTop(Double.MAX_VALUE);
-                                        lastScrollTop[0] = Double.MAX_VALUE;
-                                    } else {
-                                        // Maintain scroll position if not auto-scrolling
-                                        logsTextArea.setScrollTop(previousScrollTop);
                                     }
                                 });
                                 lastUpdate = now;
@@ -873,10 +844,15 @@ public class MainController {
                         @Override
                         public void onError(Throwable throwable) {
                             super.onError(throwable);
-                            logger.error("Error in log stream", throwable);
-                            Platform.runLater(() -> {
-                                logsTextArea.appendText("\n\nError in log stream: " + throwable.getMessage());
-                            });
+                            // Only log actual errors, not expected timeouts
+                            if (!(throwable instanceof java.net.SocketTimeoutException)) {
+                                logger.error("Error in log stream", throwable);
+                                Platform.runLater(() -> {
+                                    logsTextArea.appendText("\n\nError in log stream: " + throwable.getMessage());
+                                });
+                            } else {
+                                logger.debug("Log stream timed out (expected for inactive containers)");
+                            }
                         }
                     };
                 
@@ -906,6 +882,25 @@ public class MainController {
         
         logThread.setDaemon(true);
         logThread.start();
+    }
+    
+    /**
+     * Check if a TextArea's scrollbar is at or near the bottom.
+     * This is used to determine if we should auto-scroll when new content is added.
+     */
+    private boolean isTextAreaAtBottom(TextArea textArea) {
+        // If there's no text, consider it at bottom
+        if (textArea.getText() == null || textArea.getText().isEmpty()) {
+            return true;
+        }
+        
+        // Get the scroll position
+        double scrollTop = textArea.getScrollTop();
+        
+        // Check if scrollTop is at or very close to maximum
+        // Using a small threshold to account for floating point precision
+        // When at bottom, scrollTop is typically at or very close to Double.MAX_VALUE
+        return scrollTop >= Double.MAX_VALUE - 1000 || scrollTop >= textArea.getLength() * 0.98;
     }
 
     private void attachToContainer(Container container) {
