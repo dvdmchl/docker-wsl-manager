@@ -274,6 +274,10 @@ public class MainController {
                     }
                 }
             });
+
+            // Add selection listener to update buttons
+            containersTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> 
+                updateContainerActionButtons(newVal));
         }
 
         // Initialize images table
@@ -821,12 +825,28 @@ public class MainController {
         Button restartButton = new Button("Restart");
         Button attachButton = new Button("Attach Console");
         
+        // Initial button state
+        setButtonState(isRunning, startButton, stopButton, restartButton);
+        
         startButton.setOnAction(e -> {
             try {
                 connectionManager.getDockerClient().startContainerCmd(containerId).exec();
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container started successfully.");
                 refreshContainers();
                 
+                // Refresh local state
+                Container updatedContainer = connectionManager.getDockerClient()
+                        .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
+                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                
+                setButtonState(running, startButton, stopButton, restartButton);
+                statusValue.setText(updatedContainer.getStatus());
+                if (running) {
+                    statusValue.setStyle("-fx-text-fill: green;");
+                } else {
+                    statusValue.setStyle("-fx-text-fill: red;");
+                }
+
                 // Restart logs
                 logTextFlow.getChildren().clear();
                 startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
@@ -842,6 +862,19 @@ public class MainController {
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container stopped successfully.");
                 refreshContainers();
                 stopLogStream(containerId); // Stop logs when container stops
+                
+                // Refresh local state
+                Container updatedContainer = connectionManager.getDockerClient()
+                        .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
+                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                
+                setButtonState(running, startButton, stopButton, restartButton);
+                statusValue.setText(updatedContainer.getStatus());
+                if (running) {
+                    statusValue.setStyle("-fx-text-fill: green;");
+                } else {
+                    statusValue.setStyle("-fx-text-fill: red;");
+                }
             } catch (Exception ex) {
                 logger.error("Failed to stop container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to stop container: " + ex.getMessage());
@@ -853,6 +886,19 @@ public class MainController {
                 connectionManager.getDockerClient().restartContainerCmd(containerId).exec();
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container restarted successfully.");
                 refreshContainers();
+                
+                // Refresh local state
+                Container updatedContainer = connectionManager.getDockerClient()
+                        .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
+                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                
+                setButtonState(running, startButton, stopButton, restartButton);
+                statusValue.setText(updatedContainer.getStatus());
+                if (running) {
+                    statusValue.setStyle("-fx-text-fill: green;");
+                } else {
+                    statusValue.setStyle("-fx-text-fill: red;");
+                }
                 
                 // Restart logs
                 logTextFlow.getChildren().clear();
@@ -1257,6 +1303,48 @@ public class MainController {
                         "Failed to remove network: " + e.getMessage());
             }
         }
+    }
+
+    private void setButtonState(boolean isRunning, Button start, Button stop, Button restart) {
+        if (isRunning) {
+            start.setDisable(true);
+            stop.setDisable(false);
+            restart.setDisable(false);
+        } else {
+            start.setDisable(false);
+            stop.setDisable(true);
+            restart.setDisable(true);
+        }
+    }
+
+    private void updateContainerActionButtons(TreeItem<ContainerViewItem> item) {
+        if (item == null) {
+            startContainerButton.setDisable(true);
+            stopContainerButton.setDisable(true);
+            restartContainerButton.setDisable(true);
+            return;
+        }
+
+        if (item.getValue().isGroup()) {
+            // For groups, enable all to allow batch actions
+            startContainerButton.setDisable(false);
+            stopContainerButton.setDisable(false);
+            restartContainerButton.setDisable(false);
+            return;
+        }
+
+        Container container = item.getValue().getContainer();
+        if (container == null) {
+            startContainerButton.setDisable(true);
+            stopContainerButton.setDisable(true);
+            restartContainerButton.setDisable(true);
+            return;
+        }
+
+        String state = container.getState();
+        boolean isRunning = state != null && state.equalsIgnoreCase("running");
+
+        setButtonState(isRunning, startContainerButton, stopContainerButton, restartContainerButton);
     }
 
     private void refreshContainers() {
