@@ -7,17 +7,34 @@
 <BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
             fx:controller="org.dreamabout.sw.dockerwslmanager.MainController">
     
-    <!-- Top: Connection Panel -->
+    <!-- Top: Menu and Connection Panel -->
     <top>
-        <VBox spacing="10" style="-fx-background-color: #f4f4f4; -fx-padding: 15;">
-            <Label text="Docker Connection" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+        <VBox>
+            <MenuBar>
+                <menus>
+                    <Menu text="Settings">
+                        <items>
+                            <MenuItem text="Keybinds" onAction="#handleKeybindsAction"/>
+                        </items>
+                    </Menu>
+                    <Menu text="Help">
+                        <items>
+                            <MenuItem text="About" onAction="#handleAboutAction"/>
+                        </items>
+                    </Menu>
+                </menus>
+            </MenuBar>
             
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <Label text="Status:"/>
-                <Label fx:id="connectionStatusLabel" text="Not Connected" style="-fx-text-fill: red;"/>
-                <Button fx:id="connectAutoButton" text="🔗 _Connect / Reconnect" onAction="#handleConnectAuto"/>
-                <Button fx:id="disconnectButton" text="🔌 _Disconnect" onAction="#handleDisconnect"/>
-            </HBox>
+            <VBox spacing="10" style="-fx-background-color: #f4f4f4; -fx-padding: 15;">
+                <Label text="Docker Connection" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="Status:"/>
+                    <Label fx:id="connectionStatusLabel" text="Not Connected" style="-fx-text-fill: red;"/>
+                    <Button fx:id="connectAutoButton" text="🔗 _Connect / Reconnect" onAction="#handleConnectAuto"/>
+                    <Button fx:id="disconnectButton" text="🔌 _Disconnect" onAction="#handleDisconnect"/>
+                </HBox>
+            </VBox>
         </VBox>
     </top>
     

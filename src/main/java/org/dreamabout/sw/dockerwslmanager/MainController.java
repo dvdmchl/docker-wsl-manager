@@ -361,10 +361,14 @@ public class MainController {
         }
 
         // Configure shortcuts
+        configureAllShortcuts();
+    }
+
+    private void configureAllShortcuts() {
+        // Static buttons
         shortcutManager.configureButton(connectAutoButton, "action.connect");
         shortcutManager.configureButton(disconnectButton, "action.disconnect");
         
-        // Container shortcuts
         shortcutManager.configureButton(refreshContainersButton, "action.container.refresh");
         shortcutManager.configureButton(startContainerButton, "action.container.start");
         shortcutManager.configureButton(stopContainerButton, "action.container.stop");
@@ -382,6 +386,82 @@ public class MainController {
         
         shortcutManager.configureButton(refreshNetworksButton, "action.network.refresh");
         shortcutManager.configureButton(removeNetworkButton, "action.network.remove");
+
+        // Dynamic buttons in tabs
+        for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
+            if (tab.getContent() instanceof BorderPane) {
+                BorderPane layout = (BorderPane) tab.getContent();
+                javafx.scene.Node bottom = layout.getBottom();
+                if (bottom instanceof HBox) {
+                    HBox footer = (HBox) bottom;
+                    for (javafx.scene.Node node : footer.getChildren()) {
+                        if (node instanceof Button) {
+                            Button btn = (Button) node;
+                            Object userData = btn.getUserData();
+                            if (userData instanceof String) {
+                                String actionKey = (String) userData;
+                                if (actionKey.startsWith("action.")) {
+                                    shortcutManager.configureButton(btn, actionKey);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @FXML
+    private void handleAboutAction() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("About Docker WSL Manager");
+        alert.setHeaderText("Docker WSL Manager v1.1.0");
+        alert.setContentText("A JavaFX application to manage Docker instances running in WSL 2.\n\n" +
+                "Source code: https://github.com/dvdmchl/Docker-WSL-Manager");
+        alert.showAndWait();
+    }
+
+    @FXML
+    private void handleKeybindsAction() {
+        javafx.scene.control.Dialog<String> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle("Edit Keybinds");
+        dialog.setHeaderText("Edit shortcuts.properties\n(Changes apply immediately)");
+
+        javafx.scene.control.ButtonType saveButtonType = new javafx.scene.control.ButtonType("Save", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, javafx.scene.control.ButtonType.CANCEL);
+
+        TextArea textArea = new TextArea(shortcutManager.getShortcutsContent());
+        textArea.setEditable(true);
+        textArea.setWrapText(false);
+        textArea.setMaxWidth(Double.MAX_VALUE);
+        textArea.setMaxHeight(Double.MAX_VALUE);
+        GridPane.setVgrow(textArea, javafx.scene.layout.Priority.ALWAYS);
+        GridPane.setHgrow(textArea, javafx.scene.layout.Priority.ALWAYS);
+
+        GridPane grid = new GridPane();
+        grid.setMaxWidth(Double.MAX_VALUE);
+        grid.add(textArea, 0, 0);
+
+        dialog.getDialogPane().setContent(grid);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                return textArea.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(content -> {
+            try {
+                shortcutManager.saveShortcuts(content);
+                configureAllShortcuts(); // Re-apply shortcuts immediately
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Keybinds saved and applied.");
+            } catch (Exception e) {
+                logger.error("Failed to save keybinds", e);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save keybinds: " + e.getMessage());
+            }
+        });
     }
 
     @FXML
@@ -751,6 +831,7 @@ public class MainController {
 
     private Button createConfiguredButton(String text, String actionKey) {
         Button button = new Button(text);
+        button.setUserData(actionKey);
         shortcutManager.configureButton(button, actionKey);
         return button;
     }
