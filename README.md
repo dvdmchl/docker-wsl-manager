@@ -7,9 +7,7 @@ Lightweight standalone JavaFX application for managing Docker running in WSL 2, 
 
 ## Features
 
-- **Multiple Connection Methods**:
-  - Connect using `DOCKER_HOST` environment variable
-  - Manual connection with IP address and port
+- **Connection Methods**:
   - Auto-discovery of Docker in WSL using `wsl` command
 
 - **Container Management**:
