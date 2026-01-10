@@ -14,6 +14,8 @@
                 <menus>
                     <Menu text="Settings">
                         <items>
+                            <MenuItem text="General Settings" onAction="#handleGeneralSettingsAction"/>
+                            <CheckMenuItem fx:id="autoRefreshMenuItem" text="Auto-refresh Containers" onAction="#handleAutoRefreshAction"/>
                             <MenuItem text="Keybinds" onAction="#handleKeybindsAction"/>
                         </items>
                     </Menu>

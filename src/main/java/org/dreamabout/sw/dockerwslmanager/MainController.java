@@ -50,6 +50,7 @@ public class MainController {
     private static final String UNGROUPED_LABEL = "Ungrouped";
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
+    private final SettingsManager settingsManager = new SettingsManager();
     private DockerConnectionManager connectionManager;
 
     @FXML
@@ -61,6 +62,10 @@ public class MainController {
 
     @FXML
     private TabPane mainTabPane;
+    
+    @FXML
+    private javafx.scene.control.CheckMenuItem autoRefreshMenuItem;
+    private javafx.animation.Timeline autoRefreshTimeline;
 
     // Containers tab
     @FXML
@@ -362,6 +367,12 @@ public class MainController {
 
         // Configure shortcuts
         configureAllShortcuts();
+        
+        // Auto-refresh default enabled
+        if (autoRefreshMenuItem != null) {
+            autoRefreshMenuItem.setSelected(true);
+        }
+        setupAutoRefreshTimeline();
     }
 
     private void configureAllShortcuts() {
@@ -410,6 +421,33 @@ public class MainController {
             }
         }
     }
+    
+    private void setupAutoRefreshTimeline() {
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+        }
+        
+        int interval = settingsManager.getAutoRefreshInterval();
+        if (autoRefreshMenuItem != null) {
+            autoRefreshMenuItem.setText("Auto-refresh Containers (" + interval + "s)");
+        }
+
+        autoRefreshTimeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(interval), e -> {
+                // Only refresh if connected and containers tab is selected
+                if (connectionManager.isConnected() && 
+                    mainTabPane.getSelectionModel().getSelectedItem() != null &&
+                    "Containers".equals(mainTabPane.getSelectionModel().getSelectedItem().getText())) {
+                    refreshContainers();
+                }
+            })
+        );
+        autoRefreshTimeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        
+        if (autoRefreshMenuItem != null && autoRefreshMenuItem.isSelected()) {
+            autoRefreshTimeline.play();
+        }
+    }
 
     @FXML
     private void handleAboutAction() {
@@ -419,6 +457,30 @@ public class MainController {
         alert.setContentText("A JavaFX application to manage Docker instances running in WSL 2.\n\n" +
                 "Source code: https://github.com/dvdmchl/Docker-WSL-Manager");
         alert.showAndWait();
+    }
+
+    @FXML
+    private void handleGeneralSettingsAction() {
+        TextInputDialog dialog = new TextInputDialog(String.valueOf(settingsManager.getAutoRefreshInterval()));
+        dialog.setTitle("General Settings");
+        dialog.setHeaderText("Configure Auto-refresh");
+        dialog.setContentText("Interval (seconds):");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(val -> {
+            try {
+                int seconds = Integer.parseInt(val);
+                if (seconds < 1) seconds = 1;
+                settingsManager.setAutoRefreshInterval(seconds);
+                settingsManager.saveSettings();
+                setupAutoRefreshTimeline();
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number.");
+            } catch (Exception e) {
+                logger.error("Failed to save settings", e);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save settings: " + e.getMessage());
+            }
+        });
     }
 
     @FXML
@@ -462,6 +524,17 @@ public class MainController {
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to save keybinds: " + e.getMessage());
             }
         });
+    }
+
+    @FXML
+    private void handleAutoRefreshAction() {
+        if (autoRefreshTimeline != null) {
+            if (autoRefreshMenuItem.isSelected()) {
+                autoRefreshTimeline.play();
+            } else {
+                autoRefreshTimeline.stop();
+            }
+        }
     }
 
     @FXML
