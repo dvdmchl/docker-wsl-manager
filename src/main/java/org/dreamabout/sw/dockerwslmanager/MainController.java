@@ -290,6 +290,29 @@ public class MainController {
 
     @FXML
     private void handleStartContainer() {
+        // Check if a group is selected
+        if (isGroupSelected()) {
+            List<Container> containers = getSelectedContainerGroup();
+            if (containers.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                return;
+            }
+
+            String groupName = containersTable.getSelectionModel().getSelectedItem().getValue().getName();
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Start");
+            confirm.setHeaderText("Start Container Group");
+            confirm.setContentText("Are you sure you want to start all " + containers.size() 
+                    + " containers in group '" + groupName + "'?");
+
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                startContainers(containers);
+            }
+            return;
+        }
+
+        // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to start.");
@@ -306,8 +329,63 @@ public class MainController {
         }
     }
 
+    private void startContainers(List<Container> containers) {
+        int successCount = 0;
+        int failureCount = 0;
+        StringBuilder errors = new StringBuilder();
+
+        for (Container container : containers) {
+            try {
+                connectionManager.getDockerClient().startContainerCmd(container.getId()).exec();
+                successCount++;
+                logger.info("Started container: {}", getContainerName(container));
+            } catch (Exception e) {
+                failureCount++;
+                logger.error("Failed to start container: {}", getContainerName(container), e);
+                errors.append("\n- ").append(getContainerName(container)).append(": ").append(e.getMessage());
+            }
+        }
+
+        refreshContainers();
+
+        if (failureCount == 0) {
+            showAlert(Alert.AlertType.INFORMATION, "Success", 
+                    "All " + successCount + " containers started successfully.");
+        } else if (successCount == 0) {
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to start all containers:" + errors);
+        } else {
+            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+                    successCount + " containers started successfully.\n" 
+                    + failureCount + " containers failed:" + errors);
+        }
+    }
+
     @FXML
     private void handleStopContainer() {
+        // Check if a group is selected
+        if (isGroupSelected()) {
+            List<Container> containers = getSelectedContainerGroup();
+            if (containers.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                return;
+            }
+
+            String groupName = containersTable.getSelectionModel().getSelectedItem().getValue().getName();
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Stop");
+            confirm.setHeaderText("Stop Container Group");
+            confirm.setContentText("Are you sure you want to stop all " + containers.size() 
+                    + " containers in group '" + groupName + "'?");
+
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                stopContainers(containers);
+            }
+            return;
+        }
+
+        // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to stop.");
@@ -324,8 +402,63 @@ public class MainController {
         }
     }
 
+    private void stopContainers(List<Container> containers) {
+        int successCount = 0;
+        int failureCount = 0;
+        StringBuilder errors = new StringBuilder();
+
+        for (Container container : containers) {
+            try {
+                connectionManager.getDockerClient().stopContainerCmd(container.getId()).exec();
+                successCount++;
+                logger.info("Stopped container: {}", getContainerName(container));
+            } catch (Exception e) {
+                failureCount++;
+                logger.error("Failed to stop container: {}", getContainerName(container), e);
+                errors.append("\n- ").append(getContainerName(container)).append(": ").append(e.getMessage());
+            }
+        }
+
+        refreshContainers();
+
+        if (failureCount == 0) {
+            showAlert(Alert.AlertType.INFORMATION, "Success", 
+                    "All " + successCount + " containers stopped successfully.");
+        } else if (successCount == 0) {
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to stop all containers:" + errors);
+        } else {
+            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+                    successCount + " containers stopped successfully.\n" 
+                    + failureCount + " containers failed:" + errors);
+        }
+    }
+
     @FXML
     private void handleRestartContainer() {
+        // Check if a group is selected
+        if (isGroupSelected()) {
+            List<Container> containers = getSelectedContainerGroup();
+            if (containers.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                return;
+            }
+
+            String groupName = containersTable.getSelectionModel().getSelectedItem().getValue().getName();
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Restart");
+            confirm.setHeaderText("Restart Container Group");
+            confirm.setContentText("Are you sure you want to restart all " + containers.size() 
+                    + " containers in group '" + groupName + "'?");
+
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                restartContainers(containers);
+            }
+            return;
+        }
+
+        // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to restart.");
@@ -342,8 +475,63 @@ public class MainController {
         }
     }
 
+    private void restartContainers(List<Container> containers) {
+        int successCount = 0;
+        int failureCount = 0;
+        StringBuilder errors = new StringBuilder();
+
+        for (Container container : containers) {
+            try {
+                connectionManager.getDockerClient().restartContainerCmd(container.getId()).exec();
+                successCount++;
+                logger.info("Restarted container: {}", getContainerName(container));
+            } catch (Exception e) {
+                failureCount++;
+                logger.error("Failed to restart container: {}", getContainerName(container), e);
+                errors.append("\n- ").append(getContainerName(container)).append(": ").append(e.getMessage());
+            }
+        }
+
+        refreshContainers();
+
+        if (failureCount == 0) {
+            showAlert(Alert.AlertType.INFORMATION, "Success", 
+                    "All " + successCount + " containers restarted successfully.");
+        } else if (successCount == 0) {
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to restart all containers:" + errors);
+        } else {
+            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+                    successCount + " containers restarted successfully.\n" 
+                    + failureCount + " containers failed:" + errors);
+        }
+    }
+
     @FXML
     private void handleRemoveContainer() {
+        // Check if a group is selected
+        if (isGroupSelected()) {
+            List<Container> containers = getSelectedContainerGroup();
+            if (containers.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                return;
+            }
+
+            String groupName = containersTable.getSelectionModel().getSelectedItem().getValue().getName();
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Removal");
+            confirm.setHeaderText("Remove Container Group");
+            confirm.setContentText("Are you sure you want to remove all " + containers.size() 
+                    + " containers in group '" + groupName + "'?");
+
+            Optional<ButtonType> result = confirm.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                removeContainers(containers);
+            }
+            return;
+        }
+
+        // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to remove.");
@@ -365,6 +553,38 @@ public class MainController {
                 logger.error("Failed to remove container", e);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to remove container: " + e.getMessage());
             }
+        }
+    }
+
+    private void removeContainers(List<Container> containers) {
+        int successCount = 0;
+        int failureCount = 0;
+        StringBuilder errors = new StringBuilder();
+
+        for (Container container : containers) {
+            try {
+                connectionManager.getDockerClient().removeContainerCmd(container.getId()).withForce(true).exec();
+                successCount++;
+                logger.info("Removed container: {}", getContainerName(container));
+            } catch (Exception e) {
+                failureCount++;
+                logger.error("Failed to remove container: {}", getContainerName(container), e);
+                errors.append("\n- ").append(getContainerName(container)).append(": ").append(e.getMessage());
+            }
+        }
+
+        refreshContainers();
+
+        if (failureCount == 0) {
+            showAlert(Alert.AlertType.INFORMATION, "Success", 
+                    "All " + successCount + " containers removed successfully.");
+        } else if (successCount == 0) {
+            showAlert(Alert.AlertType.ERROR, "Error", 
+                    "Failed to remove all containers:" + errors);
+        } else {
+            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+                    successCount + " containers removed successfully.\n" 
+                    + failureCount + " containers failed:" + errors);
         }
     }
 
@@ -873,6 +1093,26 @@ public class MainController {
             return null;
         }
         return selected.getValue().getContainer();
+    }
+
+    private List<Container> getSelectedContainerGroup() {
+        TreeItem<ContainerViewItem> selected = containersTable.getSelectionModel().getSelectedItem();
+        if (selected == null || !selected.getValue().isGroup()) {
+            return Collections.emptyList();
+        }
+        List<Container> containers = new ArrayList<>();
+        for (TreeItem<ContainerViewItem> child : selected.getChildren()) {
+            Container container = child.getValue().getContainer();
+            if (container != null) {
+                containers.add(container);
+            }
+        }
+        return containers;
+    }
+
+    private boolean isGroupSelected() {
+        TreeItem<ContainerViewItem> selected = containersTable.getSelectionModel().getSelectedItem();
+        return selected != null && selected.getValue().isGroup();
     }
 
     private Image getSelectedImage() {
