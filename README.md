@@ -16,8 +16,14 @@ Lightweight standalone JavaFX application for managing Docker running in WSL 2, 
   - List all containers (running and stopped)
   - Start, stop, restart containers
   - Remove containers
-  - View container logs
+  - **Open Details**: View container logs in real-time (with ANSI color support) and control the container from a dedicated tab
   - Attach to container console (basic support)
+  - Clickable port links for running containers
+
+- **Settings & Customization**:
+  - **Configurable Shortcuts**: Customize keyboard shortcuts for all major actions via the Settings menu
+  - **Auto-Refresh**: Toggle and configure the interval for automatic container list refreshing
+  - **Auto-Update**: Automatically checks for new releases on startup
 
 - **Image Management**:
   - List all Docker images
@@ -34,7 +40,7 @@ Lightweight standalone JavaFX application for managing Docker running in WSL 2, 
 
 ## Requirements
 
-- Java 17 or higher
+- Java 22 or higher
 - Maven 3.6 or higher
 - Docker running in WSL 2 (for Windows users)
 - Docker daemon exposed on TCP port (typically 2375)
@@ -60,7 +66,7 @@ mvn javafx:run
 ### Using the JAR file
 
 ```bash
-java -jar target/docker-wsl-manager-1.0.0.jar
+java -jar target/docker-wsl-manager-1.1.0.jar
 ```
 
 Note: If you have JavaFX modules installed separately, you may need to specify the module path.
@@ -111,9 +117,9 @@ To expose Docker daemon on TCP port in WSL:
 
 ## Technologies Used
 
-- **Java 17**: Programming language
-- **JavaFX 21.0.1**: UI framework
-- **docker-java 3.3.4**: Docker API client library
+- **Java 22**: Programming language
+- **JavaFX 25.0.1**: UI framework
+- **docker-java 3.7.0**: Docker API client library
 - **Maven**: Build and dependency management
 - **SLF4J + Logback**: Logging
 
