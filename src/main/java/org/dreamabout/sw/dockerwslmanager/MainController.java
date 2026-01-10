@@ -49,6 +49,7 @@ public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
     private static final String UNGROUPED_LABEL = "Ungrouped";
 
+    private final ShortcutManager shortcutManager = new ShortcutManager();
     private DockerConnectionManager connectionManager;
 
     @FXML
@@ -75,6 +76,8 @@ public class MainController {
     @FXML
     private TreeTableColumn<ContainerViewItem, String> containerStatusColumn;
     @FXML
+    private Button refreshContainersButton;
+    @FXML
     private Button startContainerButton;
     @FXML
     private Button stopContainerButton;
@@ -99,6 +102,8 @@ public class MainController {
     @FXML
     private TreeTableColumn<ImageViewItem, String> imageSizeColumn;
     @FXML
+    private Button refreshImagesButton;
+    @FXML
     private Button removeImageButton;
     @FXML
     private Button pullImageButton;
@@ -113,6 +118,8 @@ public class MainController {
     @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeMountpointColumn;
     @FXML
+    private Button refreshVolumesButton;
+    @FXML
     private Button removeVolumeButton;
 
     // Networks tab
@@ -126,6 +133,8 @@ public class MainController {
     private TableColumn<Network, String> networkDriverColumn;
     @FXML
     private TableColumn<Network, String> networkScopeColumn;
+    @FXML
+    private Button refreshNetworksButton;
     @FXML
     private Button removeNetworkButton;
 
@@ -350,6 +359,29 @@ public class MainController {
             networkScopeColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getScope()));
         }
+
+        // Configure shortcuts
+        shortcutManager.configureButton(connectAutoButton, "action.connect");
+        shortcutManager.configureButton(disconnectButton, "action.disconnect");
+        
+        // Container shortcuts
+        shortcutManager.configureButton(refreshContainersButton, "action.container.refresh");
+        shortcutManager.configureButton(startContainerButton, "action.container.start");
+        shortcutManager.configureButton(stopContainerButton, "action.container.stop");
+        shortcutManager.configureButton(restartContainerButton, "action.container.restart");
+        shortcutManager.configureButton(removeContainerButton, "action.container.remove");
+        shortcutManager.configureButton(openDetailsButton, "action.container.details");
+        shortcutManager.configureButton(attachConsoleButton, "action.container.attach");
+        
+        shortcutManager.configureButton(refreshImagesButton, "action.image.refresh");
+        shortcutManager.configureButton(pullImageButton, "action.image.pull");
+        shortcutManager.configureButton(removeImageButton, "action.image.remove");
+        
+        shortcutManager.configureButton(refreshVolumesButton, "action.volume.refresh");
+        shortcutManager.configureButton(removeVolumeButton, "action.volume.remove");
+        
+        shortcutManager.configureButton(refreshNetworksButton, "action.network.refresh");
+        shortcutManager.configureButton(removeNetworkButton, "action.network.remove");
     }
 
     @FXML
@@ -717,6 +749,12 @@ public class MainController {
         }
     }
 
+    private Button createConfiguredButton(String text, String actionKey) {
+        Button button = new Button(text);
+        shortcutManager.configureButton(button, actionKey);
+        return button;
+    }
+
     private void createDetailsTab(Container container) {
         String containerId = container.getId();
         String containerName = getContainerName(container);
@@ -820,10 +858,10 @@ public class MainController {
         HBox footer = new HBox(10);
         footer.setStyle("-fx-padding: 10;");
         
-        Button startButton = new Button("Start");
-        Button stopButton = new Button("Stop");
-        Button restartButton = new Button("Restart");
-        Button attachButton = new Button("Attach Console");
+        Button startButton = createConfiguredButton("▶ _Start", "action.details.start");
+        Button stopButton = createConfiguredButton("⏹ S_top", "action.details.stop");
+        Button restartButton = createConfiguredButton("↻ Res_tart", "action.details.restart");
+        Button attachButton = createConfiguredButton(">_ _Attach Console", "action.details.attach");
         
         // Initial button state
         setButtonState(isRunning, startButton, stopButton, restartButton);

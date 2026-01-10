@@ -15,8 +15,8 @@
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <Label text="Status:"/>
                 <Label fx:id="connectionStatusLabel" text="Not Connected" style="-fx-text-fill: red;"/>
-                <Button fx:id="connectAutoButton" text="Connect / Reconnect" onAction="#handleConnectAuto"/>
-                <Button fx:id="disconnectButton" text="Disconnect" onAction="#handleDisconnect"/>
+                <Button fx:id="connectAutoButton" text="🔗 _Connect / Reconnect" onAction="#handleConnectAuto"/>
+                <Button fx:id="disconnectButton" text="🔌 _Disconnect" onAction="#handleDisconnect"/>
             </HBox>
         </VBox>
     </top>
@@ -41,13 +41,13 @@
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
-                            <Button text="Refresh" onAction="#handleRefreshContainers"/>
-                            <Button fx:id="startContainerButton" text="Start" onAction="#handleStartContainer"/>
-                            <Button fx:id="stopContainerButton" text="Stop" onAction="#handleStopContainer"/>
-                            <Button fx:id="restartContainerButton" text="Restart" onAction="#handleRestartContainer"/>
-                            <Button fx:id="removeContainerButton" text="Remove" onAction="#handleRemoveContainer"/>
-                            <Button fx:id="openDetailsButton" text="Open Details" onAction="#handleOpenDetails"/>
-                            <Button fx:id="attachConsoleButton" text="Attach Console" onAction="#handleAttachConsole"/>
+                            <Button fx:id="refreshContainersButton" text="⟳ Refres_h" onAction="#handleRefreshContainers"/>
+                            <Button fx:id="startContainerButton" text="▶ _Start" onAction="#handleStartContainer"/>
+                            <Button fx:id="stopContainerButton" text="⏹ S_top" onAction="#handleStopContainer"/>
+                            <Button fx:id="restartContainerButton" text="↻ Res_tart" onAction="#handleRestartContainer"/>
+                            <Button fx:id="removeContainerButton" text="🗑 Re_move" onAction="#handleRemoveContainer"/>
+                            <Button fx:id="openDetailsButton" text="📄 _Open Details" onAction="#handleOpenDetails"/>
+                            <Button fx:id="attachConsoleButton" text="&gt;_ _Attach Console" onAction="#handleAttachConsole"/>
                         </HBox>
                     </bottom>
                 </BorderPane>
@@ -68,9 +68,9 @@
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
-                            <Button text="Refresh" onAction="#handleRefreshImages"/>
-                            <Button fx:id="pullImageButton" text="Pull Image" onAction="#handlePullImage"/>
-                            <Button fx:id="removeImageButton" text="Remove" onAction="#handleRemoveImage"/>
+                            <Button fx:id="refreshImagesButton" text="⟳ Refres_h" onAction="#handleRefreshImages"/>
+                            <Button fx:id="pullImageButton" text="⬇ _Pull Image" onAction="#handlePullImage"/>
+                            <Button fx:id="removeImageButton" text="🗑 Re_move" onAction="#handleRemoveImage"/>
                         </HBox>
                     </bottom>
                 </BorderPane>
@@ -90,8 +90,8 @@
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
-                            <Button text="Refresh" onAction="#handleRefreshVolumes"/>
-                            <Button fx:id="removeVolumeButton" text="Remove" onAction="#handleRemoveVolume"/>
+                            <Button fx:id="refreshVolumesButton" text="⟳ Refres_h" onAction="#handleRefreshVolumes"/>
+                            <Button fx:id="removeVolumeButton" text="🗑 Re_move" onAction="#handleRemoveVolume"/>
                         </HBox>
                     </bottom>
                 </BorderPane>
@@ -112,8 +112,8 @@
                     </center>
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
-                            <Button text="Refresh" onAction="#handleRefreshNetworks"/>
-                            <Button fx:id="removeNetworkButton" text="Remove" onAction="#handleRemoveNetwork"/>
+                            <Button fx:id="refreshNetworksButton" text="⟳ Refres_h" onAction="#handleRefreshNetworks"/>
+                            <Button fx:id="removeNetworkButton" text="🗑 Re_move" onAction="#handleRemoveNetwork"/>
                         </HBox>
                     </bottom>
                 </BorderPane>
