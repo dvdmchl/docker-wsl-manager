@@ -800,42 +800,57 @@ public class MainController {
     private void startLogStreaming(TextArea logsTextArea, String containerId, javafx.scene.control.Tab logTab) {
         Thread logThread = new Thread(() -> {
             try {
-                StringBuilder logs = new StringBuilder();
-                com.github.dockerjava.api.async.ResultCallback.Adapter<Frame> callback = 
+                // Buffer for incoming log chunks
+                StringBuilder pendingLogs = new StringBuilder();
+                // Object to synchronize access to pendingLogs and updatePending flag
+                Object lock = new Object();
+
+                com.github.dockerjava.api.async.ResultCallback.Adapter<Frame> callback =
                     new com.github.dockerjava.api.async.ResultCallback.Adapter<Frame>() {
-                        private long lastUpdate = System.currentTimeMillis();
+                        private boolean updatePending = false;
 
                         @Override
                         public void onNext(Frame frame) {
                             String logLine = new String(frame.getPayload(), StandardCharsets.UTF_8);
-                            logs.append(logLine);
+                            
+                            synchronized (lock) {
+                                pendingLogs.append(logLine);
+                                if (!updatePending) {
+                                    updatePending = true;
+                                    Platform.runLater(this::updateUI);
+                                }
+                            }
+                        }
 
-                            // Update UI periodically (every 200ms) to avoid too many updates
-                            long now = System.currentTimeMillis();
-                            if (now - lastUpdate > 200) {
-                                String currentLogs = logs.toString();
-                                Platform.runLater(() -> {
-                                    // Check if scrollbar is at the bottom before updating
-                                    boolean wasAtBottom = isTextAreaAtBottom(logsTextArea);
-                                    
-                                    logsTextArea.setText(currentLogs);
-                                    
-                                    // Auto-scroll to bottom if it was at bottom before update
-                                    if (wasAtBottom) {
-                                        logsTextArea.setScrollTop(Double.MAX_VALUE);
-                                    }
-                                });
-                                lastUpdate = now;
+                        private void updateUI() {
+                            String textToAppend;
+                            synchronized (lock) {
+                                textToAppend = pendingLogs.toString();
+                                pendingLogs.setLength(0);
+                                updatePending = false;
+                            }
+
+                            if (textToAppend.isEmpty()) {
+                                return;
+                            }
+
+                            // Check scroll position before appending
+                            boolean wasAtBottom = isTextAreaAtBottom(logsTextArea);
+
+                            logsTextArea.appendText(textToAppend);
+
+                            // Auto-scroll if we were at the bottom
+                            if (wasAtBottom) {
+                                logsTextArea.positionCaret(logsTextArea.getLength());
+                                logsTextArea.setScrollTop(Double.MAX_VALUE);
                             }
                         }
 
                         @Override
                         public void onComplete() {
                             super.onComplete();
-                            String finalLogs = logs.toString();
                             Platform.runLater(() -> {
-                                logsTextArea.setText(finalLogs);
-                                if (finalLogs.isEmpty()) {
+                                if (logsTextArea.getText().isEmpty()) {
                                     logsTextArea.setText("No logs available for this container.");
                                 }
                             });
@@ -855,14 +870,14 @@ public class MainController {
                             }
                         }
                     };
-                
+
                 connectionManager.getDockerClient().logContainerCmd(containerId)
                         .withStdOut(true)
                         .withStdErr(true)
                         .withFollowStream(true)  // Follow stream for continuous updates
                         .withTail(1000)
                         .exec(callback);
-                
+
                 // Store callback so we can close it when tab is closed
                 logTab.setOnClosed(e -> {
                     try {
@@ -871,7 +886,7 @@ public class MainController {
                         logger.error("Error closing log stream", ex);
                     }
                 });
-                
+
             } catch (Exception e) {
                 logger.error("Failed to stream logs", e);
                 Platform.runLater(() -> {
@@ -879,28 +894,28 @@ public class MainController {
                 });
             }
         });
-        
+
         logThread.setDaemon(true);
         logThread.start();
     }
-    
+
     /**
      * Check if a TextArea's scrollbar is at or near the bottom.
-     * This is used to determine if we should auto-scroll when new content is added.
+     * Uses the vertical ScrollBar if available for accurate detection.
      */
     private boolean isTextAreaAtBottom(TextArea textArea) {
-        // If there's no text, consider it at bottom
-        if (textArea.getText() == null || textArea.getText().isEmpty()) {
-            return true;
+        // Find the vertical ScrollBar
+        javafx.scene.control.ScrollBar scrollBar = (javafx.scene.control.ScrollBar) 
+                textArea.lookup(".scroll-bar:vertical");
+        
+        if (scrollBar != null && scrollBar.isVisible()) {
+            // Check if value is near the maximum
+            // Use a small tolerance for floating point comparisons
+            return scrollBar.getValue() >= (scrollBar.getMax() - 20);
         }
         
-        // Get the scroll position
-        double scrollTop = textArea.getScrollTop();
-        
-        // Check if scrollTop is at or very close to maximum
-        // Using a small threshold to account for floating point precision
-        // When at bottom, scrollTop is typically at or very close to Double.MAX_VALUE
-        return scrollTop >= Double.MAX_VALUE - 1000 || scrollTop >= textArea.getLength() * 0.98;
+        // If no scrollbar found or not visible, we assume we are at bottom (or content fits)
+        return true;
     }
 
     private void attachToContainer(Container container) {
