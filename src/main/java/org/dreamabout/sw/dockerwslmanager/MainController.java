@@ -83,7 +83,7 @@ public class MainController {
     @FXML
     private Button removeContainerButton;
     @FXML
-    private Button viewLogsButton;
+    private Button openDetailsButton;
     @FXML
     private Button attachConsoleButton;
 
@@ -146,7 +146,7 @@ public class MainController {
                     if (event.getClickCount() == 2 && (!row.isEmpty())) {
                         ContainerViewItem item = row.getItem();
                         if (item != null && !item.isGroup()) {
-                            openLogsForContainer(item.getContainer());
+                            openContainerDetails(item.getContainer());
                         }
                     }
                 });
@@ -157,7 +157,7 @@ public class MainController {
                 if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
                     TreeItem<ContainerViewItem> selectedItem = containersTable.getSelectionModel().getSelectedItem();
                     if (selectedItem != null && !selectedItem.getValue().isGroup()) {
-                        openLogsForContainer(selectedItem.getValue().getContainer());
+                        openContainerDetails(selectedItem.getValue().getContainer());
                         event.consume();
                     }
                 }
@@ -678,16 +678,16 @@ public class MainController {
     }
 
     @FXML
-    private void handleViewLogs() {
+    private void handleOpenDetails() {
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to view logs.");
+            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to view details.");
             return;
         }
-        openLogsForContainer(selected);
+        openContainerDetails(selected);
     }
 
-    private void openLogsForContainer(Container container) {
+    private void openContainerDetails(Container container) {
         String containerId = container.getId();
         
         // Check if a tab for this container already exists
@@ -699,8 +699,8 @@ public class MainController {
             }
         }
 
-        // Create a new log tab
-        createLogTab(container);
+        // Create a new details tab
+        createDetailsTab(container);
     }
 
     // Map to track active log stream callbacks by container ID
@@ -717,14 +717,14 @@ public class MainController {
         }
     }
 
-    private void createLogTab(Container container) {
+    private void createDetailsTab(Container container) {
         String containerId = container.getId();
         String containerName = getContainerName(container);
         
         // Create tab
-        javafx.scene.control.Tab logTab = new javafx.scene.control.Tab("Logs: " + containerName);
-        logTab.setClosable(true);
-        logTab.setUserData(containerId); // Store container ID for reference
+        javafx.scene.control.Tab detailsTab = new javafx.scene.control.Tab("Details: " + containerName);
+        detailsTab.setClosable(true);
+        detailsTab.setUserData(containerId); // Store container ID for reference
         
         // Create main layout
         BorderPane layout = new BorderPane();
@@ -849,7 +849,7 @@ public class MainController {
 
                 // Restart logs
                 logTextFlow.getChildren().clear();
-                startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
+                        startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
             } catch (Exception ex) {
                 logger.error("Failed to start container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to start container: " + ex.getMessage());
@@ -902,7 +902,7 @@ public class MainController {
                 
                 // Restart logs
                 logTextFlow.getChildren().clear();
-                startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
+                        startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
             } catch (Exception ex) {
                 logger.error("Failed to restart container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to restart container: " + ex.getMessage());
@@ -914,16 +914,15 @@ public class MainController {
         footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton);
         layout.setBottom(footer);
         
-        logTab.setContent(layout);
-        
-        // Add tab and select it
-        mainTabPane.getTabs().add(logTab);
-        mainTabPane.getSelectionModel().select(logTab);
-        
-        // Start streaming logs in follow mode
-        startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
-    }
-
+                detailsTab.setContent(layout);
+                
+                // Add tab and select it
+                mainTabPane.getTabs().add(detailsTab);
+                mainTabPane.getSelectionModel().select(detailsTab);
+                
+                // Start streaming logs in follow mode
+                startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
+            }
     private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
                                    javafx.scene.control.ScrollPane logScrollPane, 
                                    String containerId, 

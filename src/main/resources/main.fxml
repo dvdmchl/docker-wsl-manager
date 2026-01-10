@@ -46,7 +46,7 @@
                             <Button fx:id="stopContainerButton" text="Stop" onAction="#handleStopContainer"/>
                             <Button fx:id="restartContainerButton" text="Restart" onAction="#handleRestartContainer"/>
                             <Button fx:id="removeContainerButton" text="Remove" onAction="#handleRemoveContainer"/>
-                            <Button fx:id="viewLogsButton" text="View Logs" onAction="#handleViewLogs"/>
+                            <Button fx:id="openDetailsButton" text="Open Details" onAction="#handleOpenDetails"/>
                             <Button fx:id="attachConsoleButton" text="Attach Console" onAction="#handleAttachConsole"/>
                         </HBox>
                     </bottom>
