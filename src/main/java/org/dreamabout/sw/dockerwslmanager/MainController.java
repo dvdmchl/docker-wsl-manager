@@ -800,25 +800,30 @@ public class MainController {
     private void startLogStreaming(TextArea logsTextArea, String containerId, javafx.scene.control.Tab logTab) {
         // Flag to track if user has scrolled away from bottom
         final boolean[] autoScroll = {true};
+        final double[] lastScrollTop = {0.0};
         
-        // Add listener to detect user scrolling
+        // Monitor scroll position changes
         logsTextArea.scrollTopProperty().addListener((obs, oldVal, newVal) -> {
-            // Check if we're at the bottom
-            double scrollTop = newVal.doubleValue();
-            double maxScroll = logsTextArea.getScrollTop();
+            double currentScroll = newVal.doubleValue();
+            double previousScroll = lastScrollTop[0];
             
-            // If user scrolled up, disable auto-scroll
-            if (scrollTop < logsTextArea.getScrollTop() - 10) {
+            // If user scrolled up manually (scroll decreased), disable auto-scroll
+            if (currentScroll < previousScroll - 1.0) {
                 autoScroll[0] = false;
             }
-        });
-        
-        // Add a text change listener to detect when we're at bottom
-        logsTextArea.textProperty().addListener((obs, oldVal, newVal) -> {
-            // Check if scroll is at the very end
-            if (logsTextArea.getScrollTop() >= logsTextArea.getLength() - logsTextArea.getHeight()) {
-                autoScroll[0] = true;
+            // If user scrolled to near the bottom, re-enable auto-scroll
+            else if (currentScroll > previousScroll) {
+                // Check if we're close to the bottom
+                double textLength = logsTextArea.getLength();
+                if (textLength > 0) {
+                    // Approximate check - if scroll position is very high, we're near bottom
+                    if (currentScroll > textLength * 0.95 || currentScroll >= Double.MAX_VALUE / 2) {
+                        autoScroll[0] = true;
+                    }
+                }
             }
+            
+            lastScrollTop[0] = currentScroll;
         });
         
         Thread logThread = new Thread(() -> {
@@ -838,10 +843,15 @@ public class MainController {
                             if (now - lastUpdate > 200) {
                                 String currentLogs = logs.toString();
                                 Platform.runLater(() -> {
+                                    double previousScrollTop = logsTextArea.getScrollTop();
                                     logsTextArea.setText(currentLogs);
                                     // Auto-scroll to bottom if enabled
                                     if (autoScroll[0]) {
                                         logsTextArea.setScrollTop(Double.MAX_VALUE);
+                                        lastScrollTop[0] = Double.MAX_VALUE;
+                                    } else {
+                                        // Maintain scroll position if not auto-scrolling
+                                        logsTextArea.setScrollTop(previousScrollTop);
                                     }
                                 });
                                 lastUpdate = now;
