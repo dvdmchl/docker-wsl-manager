@@ -721,7 +721,35 @@ public class MainController {
         
         Label portsLabel = new Label("Ports:");
         portsLabel.setStyle("-fx-font-weight: bold;");
-        Label portsValue = new Label(formatPorts(container));
+        
+        javafx.scene.Node portsNode;
+        boolean isRunning = container.getState() != null && container.getState().equalsIgnoreCase("running");
+        
+        if (isRunning && container.getPorts() != null && container.getPorts().length > 0) {
+            FlowPane flowPane = new FlowPane();
+            flowPane.setHgap(10);
+            flowPane.setVgap(5);
+            
+            boolean hasPublicPorts = false;
+            for (ContainerPort port : container.getPorts()) {
+                if (port.getPublicPort() != null) {
+                    hasPublicPorts = true;
+                    String url = buildPortUrl(port);
+                    Hyperlink hyperlink = new Hyperlink(formatPortDisplay(port));
+                    hyperlink.setOnAction(e -> openInBrowser(url));
+                    hyperlink.setStyle("-fx-text-fill: blue; -fx-underline: true;");
+                    flowPane.getChildren().add(hyperlink);
+                }
+            }
+            
+            if (hasPublicPorts) {
+                portsNode = flowPane;
+            } else {
+                portsNode = new Label(formatPorts(container));
+            }
+        } else {
+            portsNode = new Label(formatPorts(container));
+        }
         
         Label statusLabel = new Label("Status:");
         statusLabel.setStyle("-fx-font-weight: bold;");
@@ -739,7 +767,7 @@ public class MainController {
         infoGrid.add(imageLabel, 0, 1);
         infoGrid.add(imageValue, 1, 1);
         infoGrid.add(portsLabel, 2, 1);
-        infoGrid.add(portsValue, 3, 1);
+        infoGrid.add(portsNode, 3, 1);
         infoGrid.add(statusLabel, 0, 2);
         infoGrid.add(statusValue, 1, 2);
         
