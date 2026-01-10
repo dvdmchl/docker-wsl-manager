@@ -10,6 +10,7 @@ This document contains useful information, instructions, and context for the Gem
 
 -   **NO GIT COMMITS**: **NEVER** use `git commit`. The user will always commit changes manually. You may stage changes (`git add`) if necessary to verify them, but never commit.
 -   **NO GIT BRANCH/CHECKOUT**: **NEVER** create branches or checkout other branches unless explicitly instructed.
+-   **QUALITY CHECKS**: Before signaling task completion, **ALWAYS** run `mvn clean verify` to ensure Checkstyle and SpotBugs pass. If a SonarQube server is available, run `sonar:sonar` as well.
 
 ### Tech Stack
 

@@ -239,7 +239,7 @@ public class MainController {
                         setText(status);
                         // Check if status indicates running (typically starts with "Up")
                         // or stopped/exited (typically starts with "Exited" or "Created")
-                        String lowerStatus = status.toLowerCase();
+                        String lowerStatus = status.toLowerCase(java.util.Locale.ROOT);
                         if (lowerStatus.startsWith("up")) {
                             setStyle("-fx-text-fill: green;");
                         } else if (lowerStatus.startsWith("exited")
@@ -659,7 +659,6 @@ public class MainController {
         }
 
         String containerId = selected.getId();
-        String containerName = getContainerName(selected);
         
         // Check if a tab for this container already exists
         for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
@@ -992,7 +991,8 @@ public class MainController {
                             case 34: currentColor = javafx.scene.paint.Color.BLUE; break;
                             case 35: currentColor = javafx.scene.paint.Color.MAGENTA; break;
                             case 36: currentColor = javafx.scene.paint.Color.CYAN; break;
-                            case 37: currentColor = javafx.scene.paint.Color.WHITE; break;
+                            case 37: 
+                            case 97: currentColor = javafx.scene.paint.Color.WHITE; break;
                             case 90: currentColor = javafx.scene.paint.Color.GRAY; break;
                             case 91: currentColor = javafx.scene.paint.Color.INDIANRED; break;
                             case 92: currentColor = javafx.scene.paint.Color.LIGHTGREEN; break;
@@ -1000,7 +1000,6 @@ public class MainController {
                             case 94: currentColor = javafx.scene.paint.Color.LIGHTBLUE; break;
                             case 95: currentColor = javafx.scene.paint.Color.VIOLET; break;
                             case 96: currentColor = javafx.scene.paint.Color.LIGHTCYAN; break;
-                            case 97: currentColor = javafx.scene.paint.Color.WHITE; break;
                             default: break; // Ignore unknown codes
                         }
                     } catch (NumberFormatException ignored) {
@@ -1250,7 +1249,7 @@ public class MainController {
             }
 
             containersTable.setRoot(root);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Failed to refresh containers", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh containers: " + e.getMessage());
         }
@@ -1315,7 +1314,7 @@ public class MainController {
             }
 
             imagesTable.setRoot(root);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Failed to refresh images", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh images: " + e.getMessage());
         }
@@ -1365,7 +1364,7 @@ public class MainController {
             }
 
             volumesTable.setRoot(root);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Failed to refresh volumes", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh volumes: " + e.getMessage());
         }
@@ -1601,7 +1600,8 @@ public class MainController {
      * Build a URL from a container port.
      */
     private String buildPortUrl(ContainerPort port) {
-        if (port.getPublicPort() == null) {
+        Integer publicPort = port.getPublicPort();
+        if (publicPort == null) {
             return null;
         }
         
@@ -1612,11 +1612,11 @@ public class MainController {
         
         // Use http for common ports, or just construct with http by default
         String protocol = "http";
-        if (port.getPublicPort() == 443 || port.getPublicPort() == 8443) {
+        if (publicPort == 443 || publicPort == 8443) {
             protocol = "https";
         }
         
-        return protocol + "://" + ip + ":" + port.getPublicPort();
+        return protocol + "://" + ip + ":" + publicPort;
     }
 
     /**
@@ -1636,7 +1636,7 @@ public class MainController {
                     logger.info("Opened URL in browser: {}", url);
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | java.net.URISyntaxException e) {
             logger.error("Failed to open URL in browser: {}", url, e);
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to open URL in browser: " + e.getMessage());
