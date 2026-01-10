@@ -87,8 +87,10 @@ $releaseNotes = @"
 - **Container Details Page**: Renamed "View Logs" to "Open Details", providing a dedicated space to view output and control the container.
 - **Reactive UI**: Action buttons (Start, Stop, Restart) now automatically react to the container's running state.
 - **Dynamic Keyboard Shortcuts**: Implemented configurable shortcuts (e.g., Ctrl+S, Ctrl+R) for all major actions via a new Settings menu.
+- **Immediate Shortcut Application**: Changes to keybinds now apply instantly without requiring an application restart.
 - **Auto-Update Check**: The application now automatically checks for newer versions on GitHub during startup.
-- **Configurable Auto-Refresh**: Added an option to toggle and customize the container list refresh interval.
+- **Configurable Auto-Refresh**: Added a "General Settings" menu to toggle and customize the container list refresh interval.
+- **Selection Preservation**: The application now remembers and restores your selected container after a refresh.
 - **Clickable Ports**: Container ports in the Details view are now clickable hyperlinks.
 - **Better Keyboard Control**: The application now focuses the first container on startup for immediate keyboard navigation.
 

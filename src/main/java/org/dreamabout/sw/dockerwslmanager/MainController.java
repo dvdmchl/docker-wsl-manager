@@ -1579,6 +1579,13 @@ public class MainController {
             return;
         }
 
+        // Capture current selection
+        TreeItem<ContainerViewItem> currentSelection = containersTable.getSelectionModel().getSelectedItem();
+        String selectedId = null;
+        if (currentSelection != null && !currentSelection.getValue().isGroup()) {
+            selectedId = currentSelection.getValue().getContainer().getId();
+        }
+
         try {
             List<Container> containers = connectionManager.getDockerClient()
                     .listContainersCmd()
@@ -1619,8 +1626,24 @@ public class MainController {
 
             containersTable.setRoot(root);
             
-            // Focus on first item if available
-            if (!root.getChildren().isEmpty()) {
+            // Restore selection or default to first
+            boolean restored = false;
+            if (selectedId != null) {
+                for (TreeItem<ContainerViewItem> group : root.getChildren()) {
+                    for (TreeItem<ContainerViewItem> item : group.getChildren()) {
+                        if (!item.getValue().isGroup() && item.getValue().getContainer().getId().equals(selectedId)) {
+                            containersTable.getSelectionModel().select(item);
+                            restored = true;
+                            break;
+                        }
+                    }
+                    if (restored) {
+                        break;
+                    }
+                }
+            }
+
+            if (!restored && !root.getChildren().isEmpty()) {
                 containersTable.getSelectionModel().select(0);
                 containersTable.requestFocus();
             }
