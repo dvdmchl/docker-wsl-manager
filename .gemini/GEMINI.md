@@ -6,6 +6,11 @@ This document contains useful information, instructions, and context for the Gem
 
 **Docker-WSL-Manager** is a JavaFX-based GUI application designed to manage Docker instances, specifically optimized for Docker environments running within WSL 2 (Windows Subsystem for Linux). It provides a user-friendly interface to view and manage containers, images, volumes, networks, and logs.
 
+## CRITICAL RULES
+
+-   **NO GIT COMMITS**: **NEVER** use `git commit`. The user will always commit changes manually. You may stage changes (`git add`) if necessary to verify them, but never commit.
+-   **NO GIT BRANCH/CHECKOUT**: **NEVER** create branches or checkout other branches unless explicitly instructed.
+
 ### Tech Stack
 
 -   **Language**: Java 22
@@ -78,7 +83,6 @@ run.bat
 ## Best Practices for Agent
 
 -   **Code Quality**: Maintain clean, readable code. Follow standard Java naming conventions.
--   **Commitment**: Never commit changes using `git`. The user will always commit changes manually.
 -   **Dependencies**: Do not add new libraries without explicit user permission.
 -   **Git Operations**: Never use `git add`, `git stash`, or `git checkout`.
 -   **Remote Repository**: Do not use tools that modify the remote GitHub repository.

@@ -674,6 +674,20 @@ public class MainController {
         createLogTab(selected);
     }
 
+    // Map to track active log stream callbacks by container ID
+    private final Map<String, java.io.Closeable> activeLogStreams = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void stopLogStream(String containerId) {
+        java.io.Closeable callback = activeLogStreams.remove(containerId);
+        if (callback != null) {
+            try {
+                callback.close();
+            } catch (Exception e) {
+                logger.error("Error closing log stream for container {}", containerId, e);
+            }
+        }
+    }
+
     private void createLogTab(Container container) {
         String containerId = container.getId();
         String containerName = getContainerName(container);
@@ -734,11 +748,16 @@ public class MainController {
         layout.setTop(header);
         
         // Create center area with logs
-        TextArea logsTextArea = new TextArea();
-        logsTextArea.setEditable(false);
-        logsTextArea.setWrapText(false);
-        logsTextArea.setStyle("-fx-font-family: 'Courier New', monospace;");
-        layout.setCenter(logsTextArea);
+        javafx.scene.text.TextFlow logTextFlow = new javafx.scene.text.TextFlow();
+        logTextFlow.setStyle("-fx-background-color: black; -fx-font-family: 'Courier New', monospace;");
+        logTextFlow.setPadding(new javafx.geometry.Insets(5));
+
+        javafx.scene.control.ScrollPane logScrollPane = new javafx.scene.control.ScrollPane(logTextFlow);
+        logScrollPane.setFitToWidth(true);
+        logScrollPane.setFitToHeight(true);
+        logScrollPane.setStyle("-fx-background: black; -fx-background-color: black;");
+        
+        layout.setCenter(logScrollPane);
         
         // Create footer with control buttons
         HBox footer = new HBox(10);
@@ -754,6 +773,10 @@ public class MainController {
                 connectionManager.getDockerClient().startContainerCmd(containerId).exec();
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container started successfully.");
                 refreshContainers();
+                
+                // Restart logs
+                logTextFlow.getChildren().clear();
+                startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
             } catch (Exception ex) {
                 logger.error("Failed to start container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to start container: " + ex.getMessage());
@@ -765,6 +788,7 @@ public class MainController {
                 connectionManager.getDockerClient().stopContainerCmd(containerId).exec();
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container stopped successfully.");
                 refreshContainers();
+                stopLogStream(containerId); // Stop logs when container stops
             } catch (Exception ex) {
                 logger.error("Failed to stop container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to stop container: " + ex.getMessage());
@@ -776,6 +800,10 @@ public class MainController {
                 connectionManager.getDockerClient().restartContainerCmd(containerId).exec();
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Container restarted successfully.");
                 refreshContainers();
+                
+                // Restart logs
+                logTextFlow.getChildren().clear();
+                startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
             } catch (Exception ex) {
                 logger.error("Failed to restart container", ex);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to restart container: " + ex.getMessage());
@@ -794,10 +822,16 @@ public class MainController {
         mainTabPane.getSelectionModel().select(logTab);
         
         // Start streaming logs in follow mode
-        startLogStreaming(logsTextArea, containerId, logTab);
+        startLogStreaming(logTextFlow, logScrollPane, containerId, logTab);
     }
 
-    private void startLogStreaming(TextArea logsTextArea, String containerId, javafx.scene.control.Tab logTab) {
+    private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
+                                   javafx.scene.control.ScrollPane logScrollPane, 
+                                   String containerId, 
+                                   javafx.scene.control.Tab logTab) {
+        // Stop any existing stream for this container first
+        stopLogStream(containerId);
+
         Thread logThread = new Thread(() -> {
             try {
                 // Buffer for incoming log chunks
@@ -834,24 +868,38 @@ public class MainController {
                                 return;
                             }
 
-                            // Check scroll position before appending
-                            boolean wasAtBottom = isTextAreaAtBottom(logsTextArea);
+                            // Check if we are at the bottom BEFORE adding content
+                            // We are at the bottom if:
+                            // 1. Content fits within the viewport (no scrollbar needed yet)
+                            // 2. OR the scrollbar is near the bottom
+                            double contentHeight = logTextFlow.getBoundsInLocal().getHeight();
+                            double viewportHeight = logScrollPane.getViewportBounds().getHeight();
+                            boolean contentFits = contentHeight <= viewportHeight;
+                            boolean scrollAtBottom = logScrollPane.getVvalue() >= 0.99;
+                            
+                            boolean wasAtBottom = contentFits || scrollAtBottom;
 
-                            logsTextArea.appendText(textToAppend);
+                            appendAnsiText(logTextFlow, textToAppend);
 
-                            // Auto-scroll if we were at the bottom
+                            // Auto-scroll ONLY if we were already at the bottom
                             if (wasAtBottom) {
-                                logsTextArea.positionCaret(logsTextArea.getLength());
-                                logsTextArea.setScrollTop(Double.MAX_VALUE);
+                                // Defer scroll to ensure layout is updated
+                                Platform.runLater(() -> {
+                                    logScrollPane.layout(); // Force layout update
+                                    logScrollPane.setVvalue(1.0);
+                                });
                             }
                         }
 
                         @Override
                         public void onComplete() {
                             super.onComplete();
+                            activeLogStreams.remove(containerId); // Clean up map
                             Platform.runLater(() -> {
-                                if (logsTextArea.getText().isEmpty()) {
-                                    logsTextArea.setText("No logs available for this container.");
+                                if (logTextFlow.getChildren().isEmpty()) {
+                                    javafx.scene.text.Text text = new javafx.scene.text.Text("No logs available for this container.");
+                                    text.setFill(javafx.scene.paint.Color.WHITE);
+                                    logTextFlow.getChildren().add(text);
                                 }
                             });
                         }
@@ -859,17 +907,24 @@ public class MainController {
                         @Override
                         public void onError(Throwable throwable) {
                             super.onError(throwable);
-                            // Only log actual errors, not expected timeouts
-                            if (!(throwable instanceof java.net.SocketTimeoutException)) {
+                            activeLogStreams.remove(containerId); // Clean up map
+                            // Only log actual errors, not expected timeouts or closed streams
+                            if (!(throwable instanceof java.net.SocketTimeoutException) && 
+                                !throwable.getMessage().contains("Closed")) {
                                 logger.error("Error in log stream", throwable);
                                 Platform.runLater(() -> {
-                                    logsTextArea.appendText("\n\nError in log stream: " + throwable.getMessage());
+                                    javafx.scene.text.Text text = new javafx.scene.text.Text("\n\nError in log stream: " + throwable.getMessage());
+                                    text.setFill(javafx.scene.paint.Color.RED);
+                                    logTextFlow.getChildren().add(text);
                                 });
                             } else {
-                                logger.debug("Log stream timed out (expected for inactive containers)");
+                                logger.debug("Log stream timed out or closed");
                             }
                         }
                     };
+
+                // Register the callback so we can stop it later
+                activeLogStreams.put(containerId, callback);
 
                 connectionManager.getDockerClient().logContainerCmd(containerId)
                         .withStdOut(true)
@@ -879,18 +934,14 @@ public class MainController {
                         .exec(callback);
 
                 // Store callback so we can close it when tab is closed
-                logTab.setOnClosed(e -> {
-                    try {
-                        callback.close();
-                    } catch (Exception ex) {
-                        logger.error("Error closing log stream", ex);
-                    }
-                });
+                logTab.setOnClosed(e -> stopLogStream(containerId));
 
             } catch (Exception e) {
                 logger.error("Failed to stream logs", e);
                 Platform.runLater(() -> {
-                    logsTextArea.setText("Error streaming logs: " + e.getMessage());
+                    javafx.scene.text.Text text = new javafx.scene.text.Text("Error streaming logs: " + e.getMessage());
+                    text.setFill(javafx.scene.paint.Color.RED);
+                    logTextFlow.getChildren().add(text);
                 });
             }
         });
@@ -899,23 +950,78 @@ public class MainController {
         logThread.start();
     }
 
-    /**
-     * Check if a TextArea's scrollbar is at or near the bottom.
-     * Uses the vertical ScrollBar if available for accurate detection.
-     */
-    private boolean isTextAreaAtBottom(TextArea textArea) {
-        // Find the vertical ScrollBar
-        javafx.scene.control.ScrollBar scrollBar = (javafx.scene.control.ScrollBar) 
-                textArea.lookup(".scroll-bar:vertical");
+    private void appendAnsiText(javafx.scene.text.TextFlow textFlow, String text) {
+        // Basic ANSI split regex
+        String[] parts = text.split("\u001B\\[");
         
-        if (scrollBar != null && scrollBar.isVisible()) {
-            // Check if value is near the maximum
-            // Use a small tolerance for floating point comparisons
-            return scrollBar.getValue() >= (scrollBar.getMax() - 20);
+        if (parts.length == 0) {
+            return;
         }
+
+        // Default color
+        javafx.scene.paint.Color currentColor = javafx.scene.paint.Color.LIGHTGRAY;
         
-        // If no scrollbar found or not visible, we assume we are at bottom (or content fits)
-        return true;
+        // Handle first part (no escape code prefix usually, or empty if string starts with one)
+        if (!parts[0].isEmpty()) {
+             javafx.scene.text.Text node = new javafx.scene.text.Text(parts[0]);
+             node.setFill(currentColor);
+             node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+             textFlow.getChildren().add(node);
+        }
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i];
+            int mIndex = part.indexOf('m');
+            
+            if (mIndex > -1) {
+                String codeStr = part.substring(0, mIndex);
+                String content = part.substring(mIndex + 1);
+
+                // Parse codes
+                String[] codes = codeStr.split(";");
+                for (String code : codes) {
+                    try {
+                        if (code.isEmpty()) continue;
+                        int c = Integer.parseInt(code);
+                        switch (c) {
+                            case 0: currentColor = javafx.scene.paint.Color.LIGHTGRAY; break; // Reset
+                            case 30: currentColor = javafx.scene.paint.Color.BLACK; break;
+                            case 31: currentColor = javafx.scene.paint.Color.RED; break;
+                            case 32: currentColor = javafx.scene.paint.Color.GREEN; break;
+                            case 33: currentColor = javafx.scene.paint.Color.YELLOW; break;
+                            case 34: currentColor = javafx.scene.paint.Color.BLUE; break;
+                            case 35: currentColor = javafx.scene.paint.Color.MAGENTA; break;
+                            case 36: currentColor = javafx.scene.paint.Color.CYAN; break;
+                            case 37: currentColor = javafx.scene.paint.Color.WHITE; break;
+                            case 90: currentColor = javafx.scene.paint.Color.GRAY; break;
+                            case 91: currentColor = javafx.scene.paint.Color.INDIANRED; break;
+                            case 92: currentColor = javafx.scene.paint.Color.LIGHTGREEN; break;
+                            case 93: currentColor = javafx.scene.paint.Color.LIGHTYELLOW; break;
+                            case 94: currentColor = javafx.scene.paint.Color.LIGHTBLUE; break;
+                            case 95: currentColor = javafx.scene.paint.Color.VIOLET; break;
+                            case 96: currentColor = javafx.scene.paint.Color.LIGHTCYAN; break;
+                            case 97: currentColor = javafx.scene.paint.Color.WHITE; break;
+                            default: break; // Ignore unknown codes
+                        }
+                    } catch (NumberFormatException ignored) {
+                        // Ignore malformed codes
+                    }
+                }
+
+                if (!content.isEmpty()) {
+                    javafx.scene.text.Text node = new javafx.scene.text.Text(content);
+                    node.setFill(currentColor);
+                    node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+                    textFlow.getChildren().add(node);
+                }
+            } else {
+                // No 'm' terminator, treat whole part as text (fallback)
+                javafx.scene.text.Text node = new javafx.scene.text.Text("\u001B[" + part);
+                node.setFill(currentColor);
+                node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+                textFlow.getChildren().add(node);
+            }
+        }
     }
 
     private void attachToContainer(Container container) {
