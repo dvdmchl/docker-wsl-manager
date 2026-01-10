@@ -34,7 +34,8 @@
                                 <TreeTableColumn fx:id="containerNameColumn" text="Name" prefWidth="200"/>
                                 <TreeTableColumn fx:id="containerIdColumn" text="ID" prefWidth="100"/>
                                 <TreeTableColumn fx:id="containerImageColumn" text="Image" prefWidth="250"/>
-                                <TreeTableColumn fx:id="containerStatusColumn" text="Status" prefWidth="300"/>
+                                <TreeTableColumn fx:id="containerPortsColumn" text="Ports" prefWidth="250"/>
+                                <TreeTableColumn fx:id="containerStatusColumn" text="Status" prefWidth="200"/>
                             </columns>
                         </TreeTableView>
                     </center>
