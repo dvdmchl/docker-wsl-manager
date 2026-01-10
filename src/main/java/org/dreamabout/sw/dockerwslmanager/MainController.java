@@ -25,7 +25,11 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -43,7 +47,6 @@ import java.util.stream.Collectors;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
-    private static final int LOGS_TAB_INDEX = 4;
     private static final String UNGROUPED_LABEL = "Ungrouped";
 
     private DockerConnectionManager connectionManager;
@@ -125,10 +128,6 @@ public class MainController {
     private TableColumn<Network, String> networkScopeColumn;
     @FXML
     private Button removeNetworkButton;
-
-    // Logs tab
-    @FXML
-    private TextArea logsTextArea;
 
     @FXML
     public void initialize() {
@@ -659,91 +658,253 @@ public class MainController {
             return;
         }
 
-        try {
-            // Switch to logs tab
-            mainTabPane.getSelectionModel().select(LOGS_TAB_INDEX);
-
-            logsTextArea.clear();
-            logsTextArea.appendText("Fetching logs for " + getContainerName(selected) + "...\n\n");
-
-            // Fetch logs in background
-            new Thread(() -> {
-                try {
-                    connectionManager.getDockerClient().logContainerCmd(selected.getId())
-                            .withStdOut(true)
-                            .withStdErr(true)
-                            .withTail(1000)
-                            .withFollowStream(false)  // Don't follow stream to get logs immediately
-                            .exec(new com.github.dockerjava.api.async.ResultCallback.Adapter<Frame>() {
-                                private final StringBuilder logs = new StringBuilder();
-                                private long lastUpdate = System.currentTimeMillis();
-
-                                @Override
-                                public void onNext(Frame frame) {
-                                    logs.append(new String(frame.getPayload(), StandardCharsets.UTF_8));
-
-                                    // Update UI periodically (every 100ms) to avoid too many updates
-                                    long now = System.currentTimeMillis();
-                                    if (now - lastUpdate > 100) {
-                                        String currentLogs = logs.toString();
-                                        Platform.runLater(() -> logsTextArea.setText(currentLogs));
-                                        lastUpdate = now;
-                                    }
-                                }
-
-                                @Override
-                                public void onComplete() {
-                                    super.onComplete();
-                                    String finalLogs = logs.toString();
-                                    Platform.runLater(() -> {
-                                        logsTextArea.setText(finalLogs);
-                                        if (finalLogs.isEmpty()) {
-                                            logsTextArea.setText("No logs available for this container.");
-                                        }
-                                    });
-                                }
-
-                                @Override
-                                public void onError(Throwable throwable) {
-                                    super.onError(throwable);
-                                    logger.error("Error in log stream", throwable);
-                                    Platform.runLater(() -> {
-                                        logsTextArea.setText("Error fetching logs: " + throwable.getMessage());
-                                    });
-                                }
-                            }).awaitCompletion(5, java.util.concurrent.TimeUnit.SECONDS);
-
-                } catch (InterruptedException e) {
-                    logger.warn("Log fetching interrupted", e);
-                    Thread.currentThread().interrupt();
-                } catch (Exception e) {
-                    logger.error("Failed to fetch logs", e);
-                    Platform.runLater(() -> {
-                        logsTextArea.clear();
-                        logsTextArea.appendText("Error fetching logs: " + e.getMessage());
-                    });
-                }
-            }).start();
-        } catch (Exception e) {
-            logger.error("Failed to view logs", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to view logs: " + e.getMessage());
+        String containerId = selected.getId();
+        String containerName = getContainerName(selected);
+        
+        // Check if a tab for this container already exists
+        for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
+            if (tab.getUserData() != null && tab.getUserData().equals(containerId)) {
+                // Tab already exists, just select it
+                mainTabPane.getSelectionModel().select(tab);
+                return;
+            }
         }
+
+        // Create a new log tab
+        createLogTab(selected);
     }
 
-    @FXML
-    private void handleAttachConsole() {
-        Container selected = getSelectedContainer();
-        if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to attach.");
-            return;
+    private void createLogTab(Container container) {
+        String containerId = container.getId();
+        String containerName = getContainerName(container);
+        
+        // Create tab
+        javafx.scene.control.Tab logTab = new javafx.scene.control.Tab("Logs: " + containerName);
+        logTab.setClosable(true);
+        logTab.setUserData(containerId); // Store container ID for reference
+        
+        // Create main layout
+        BorderPane layout = new BorderPane();
+        
+        // Create header with container info
+        VBox header = new VBox(5);
+        header.setStyle("-fx-background-color: #f4f4f4; -fx-padding: 10;");
+        
+        GridPane infoGrid = new GridPane();
+        infoGrid.setHgap(10);
+        infoGrid.setVgap(5);
+        
+        Label nameLabel = new Label("Name:");
+        nameLabel.setStyle("-fx-font-weight: bold;");
+        Label nameValue = new Label(containerName);
+        
+        Label idLabel = new Label("ID:");
+        idLabel.setStyle("-fx-font-weight: bold;");
+        Label idValue = new Label(containerId.substring(0, Math.min(12, containerId.length())));
+        
+        Label imageLabel = new Label("Image:");
+        imageLabel.setStyle("-fx-font-weight: bold;");
+        Label imageValue = new Label(container.getImage());
+        
+        Label portsLabel = new Label("Ports:");
+        portsLabel.setStyle("-fx-font-weight: bold;");
+        Label portsValue = new Label(formatPorts(container));
+        
+        Label statusLabel = new Label("Status:");
+        statusLabel.setStyle("-fx-font-weight: bold;");
+        Label statusValue = new Label(container.getStatus());
+        if (container.getState() != null && container.getState().equalsIgnoreCase("running")) {
+            statusValue.setStyle("-fx-text-fill: green;");
+        } else {
+            statusValue.setStyle("-fx-text-fill: red;");
         }
+        
+        infoGrid.add(nameLabel, 0, 0);
+        infoGrid.add(nameValue, 1, 0);
+        infoGrid.add(idLabel, 2, 0);
+        infoGrid.add(idValue, 3, 0);
+        infoGrid.add(imageLabel, 0, 1);
+        infoGrid.add(imageValue, 1, 1);
+        infoGrid.add(portsLabel, 2, 1);
+        infoGrid.add(portsValue, 3, 1);
+        infoGrid.add(statusLabel, 0, 2);
+        infoGrid.add(statusValue, 1, 2);
+        
+        header.getChildren().add(infoGrid);
+        layout.setTop(header);
+        
+        // Create center area with logs
+        TextArea logsTextArea = new TextArea();
+        logsTextArea.setEditable(false);
+        logsTextArea.setWrapText(false);
+        logsTextArea.setStyle("-fx-font-family: 'Courier New', monospace;");
+        layout.setCenter(logsTextArea);
+        
+        // Create footer with control buttons
+        HBox footer = new HBox(10);
+        footer.setStyle("-fx-padding: 10;");
+        
+        Button startButton = new Button("Start");
+        Button stopButton = new Button("Stop");
+        Button restartButton = new Button("Restart");
+        Button attachButton = new Button("Attach Console");
+        
+        startButton.setOnAction(e -> {
+            try {
+                connectionManager.getDockerClient().startContainerCmd(containerId).exec();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Container started successfully.");
+                refreshContainers();
+            } catch (Exception ex) {
+                logger.error("Failed to start container", ex);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to start container: " + ex.getMessage());
+            }
+        });
+        
+        stopButton.setOnAction(e -> {
+            try {
+                connectionManager.getDockerClient().stopContainerCmd(containerId).exec();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Container stopped successfully.");
+                refreshContainers();
+            } catch (Exception ex) {
+                logger.error("Failed to stop container", ex);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to stop container: " + ex.getMessage());
+            }
+        });
+        
+        restartButton.setOnAction(e -> {
+            try {
+                connectionManager.getDockerClient().restartContainerCmd(containerId).exec();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Container restarted successfully.");
+                refreshContainers();
+            } catch (Exception ex) {
+                logger.error("Failed to restart container", ex);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to restart container: " + ex.getMessage());
+            }
+        });
+        
+        attachButton.setOnAction(e -> attachToContainer(container));
+        
+        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton);
+        layout.setBottom(footer);
+        
+        logTab.setContent(layout);
+        
+        // Add tab and select it
+        mainTabPane.getTabs().add(logTab);
+        mainTabPane.getSelectionModel().select(logTab);
+        
+        // Start streaming logs in follow mode
+        startLogStreaming(logsTextArea, containerId, logTab);
+    }
 
+    private void startLogStreaming(TextArea logsTextArea, String containerId, javafx.scene.control.Tab logTab) {
+        // Flag to track if user has scrolled away from bottom
+        final boolean[] autoScroll = {true};
+        
+        // Add listener to detect user scrolling
+        logsTextArea.scrollTopProperty().addListener((obs, oldVal, newVal) -> {
+            // Check if we're at the bottom
+            double scrollTop = newVal.doubleValue();
+            double maxScroll = logsTextArea.getScrollTop();
+            
+            // If user scrolled up, disable auto-scroll
+            if (scrollTop < logsTextArea.getScrollTop() - 10) {
+                autoScroll[0] = false;
+            }
+        });
+        
+        // Add a text change listener to detect when we're at bottom
+        logsTextArea.textProperty().addListener((obs, oldVal, newVal) -> {
+            // Check if scroll is at the very end
+            if (logsTextArea.getScrollTop() >= logsTextArea.getLength() - logsTextArea.getHeight()) {
+                autoScroll[0] = true;
+            }
+        });
+        
+        Thread logThread = new Thread(() -> {
+            try {
+                StringBuilder logs = new StringBuilder();
+                com.github.dockerjava.api.async.ResultCallback.Adapter<Frame> callback = 
+                    new com.github.dockerjava.api.async.ResultCallback.Adapter<Frame>() {
+                        private long lastUpdate = System.currentTimeMillis();
+
+                        @Override
+                        public void onNext(Frame frame) {
+                            String logLine = new String(frame.getPayload(), StandardCharsets.UTF_8);
+                            logs.append(logLine);
+
+                            // Update UI periodically (every 200ms) to avoid too many updates
+                            long now = System.currentTimeMillis();
+                            if (now - lastUpdate > 200) {
+                                String currentLogs = logs.toString();
+                                Platform.runLater(() -> {
+                                    logsTextArea.setText(currentLogs);
+                                    // Auto-scroll to bottom if enabled
+                                    if (autoScroll[0]) {
+                                        logsTextArea.setScrollTop(Double.MAX_VALUE);
+                                    }
+                                });
+                                lastUpdate = now;
+                            }
+                        }
+
+                        @Override
+                        public void onComplete() {
+                            super.onComplete();
+                            String finalLogs = logs.toString();
+                            Platform.runLater(() -> {
+                                logsTextArea.setText(finalLogs);
+                                if (finalLogs.isEmpty()) {
+                                    logsTextArea.setText("No logs available for this container.");
+                                }
+                            });
+                        }
+
+                        @Override
+                        public void onError(Throwable throwable) {
+                            super.onError(throwable);
+                            logger.error("Error in log stream", throwable);
+                            Platform.runLater(() -> {
+                                logsTextArea.appendText("\n\nError in log stream: " + throwable.getMessage());
+                            });
+                        }
+                    };
+                
+                connectionManager.getDockerClient().logContainerCmd(containerId)
+                        .withStdOut(true)
+                        .withStdErr(true)
+                        .withFollowStream(true)  // Follow stream for continuous updates
+                        .withTail(1000)
+                        .exec(callback);
+                
+                // Store callback so we can close it when tab is closed
+                logTab.setOnClosed(e -> {
+                    try {
+                        callback.close();
+                    } catch (Exception ex) {
+                        logger.error("Error closing log stream", ex);
+                    }
+                });
+                
+            } catch (Exception e) {
+                logger.error("Failed to stream logs", e);
+                Platform.runLater(() -> {
+                    logsTextArea.setText("Error streaming logs: " + e.getMessage());
+                });
+            }
+        });
+        
+        logThread.setDaemon(true);
+        logThread.start();
+    }
+
+    private void attachToContainer(Container container) {
         try {
-            String containerId = selected.getId();
-            String containerName = getContainerName(selected);
+            String containerId = container.getId();
+            String containerName = getContainerName(container);
 
             // Check if container is running
-            if (!selected.getState().equalsIgnoreCase("running")) {
+            if (!container.getState().equalsIgnoreCase("running")) {
                 showAlert(Alert.AlertType.WARNING, "Container Not Running",
                         "Container " + containerName + " is not running. Please start it first.");
                 return;
@@ -764,7 +925,6 @@ public class MainController {
             dockerCommand.append(" || pause");
 
             // Start new cmd window with docker attach
-            // Using cmd /c start to open a new window, then cmd /k to keep it open after command
             ProcessBuilder processBuilder = new ProcessBuilder(
                     "cmd.exe", "/c", "start",
                     "Docker Attach - " + containerName,
@@ -780,6 +940,16 @@ public class MainController {
             showAlert(Alert.AlertType.ERROR, "Error",
                     "Failed to open console: " + e.getMessage());
         }
+    }
+
+    @FXML
+    private void handleAttachConsole() {
+        Container selected = getSelectedContainer();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to attach.");
+            return;
+        }
+        attachToContainer(selected);
     }
 
     @FXML
@@ -1112,9 +1282,6 @@ public class MainController {
         }
         if (networksTable != null) {
             networksTable.getItems().clear();
-        }
-        if (logsTextArea != null) {
-            logsTextArea.clear();
         }
     }
 
