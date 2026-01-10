@@ -140,6 +140,29 @@ public class MainController {
 
         // Initialize containers table
         if (containerNameColumn != null) {
+            containersTable.setRowFactory(tv -> {
+                javafx.scene.control.TreeTableRow<ContainerViewItem> row = new javafx.scene.control.TreeTableRow<>();
+                row.setOnMouseClicked(event -> {
+                    if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                        ContainerViewItem item = row.getItem();
+                        if (item != null && !item.isGroup()) {
+                            openLogsForContainer(item.getContainer());
+                        }
+                    }
+                });
+                return row;
+            });
+
+            containersTable.setOnKeyPressed(event -> {
+                if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                    TreeItem<ContainerViewItem> selectedItem = containersTable.getSelectionModel().getSelectedItem();
+                    if (selectedItem != null && !selectedItem.getValue().isGroup()) {
+                        openLogsForContainer(selectedItem.getValue().getContainer());
+                        event.consume();
+                    }
+                }
+            });
+
             containerNameColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getValue().getName()));
             
@@ -657,8 +680,11 @@ public class MainController {
             showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to view logs.");
             return;
         }
+        openLogsForContainer(selected);
+    }
 
-        String containerId = selected.getId();
+    private void openLogsForContainer(Container container) {
+        String containerId = container.getId();
         
         // Check if a tab for this container already exists
         for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
@@ -670,7 +696,7 @@ public class MainController {
         }
 
         // Create a new log tab
-        createLogTab(selected);
+        createLogTab(container);
     }
 
     // Map to track active log stream callbacks by container ID
