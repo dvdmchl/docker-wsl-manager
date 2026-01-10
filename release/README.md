@@ -2,6 +2,8 @@
 
 Lightweight standalone JavaFX application for managing Docker running in WSL 2, connecting via TCP/IP.
 
+![Application Screenshot](doc/img/screen1.png)
+
 ## Features
 
 - **Multiple Connection Methods**:
@@ -140,3 +142,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+### AI Agent Support
+This project is configured to work with Gemini AI coding agent.

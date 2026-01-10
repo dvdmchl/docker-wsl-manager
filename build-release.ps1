@@ -79,6 +79,24 @@ if (Test-Path "LICENSE") {
 $releaseNotes = @"
 # Docker WSL Manager - Release $Version
 
+## What's New in 1.1.0
+
+### Features & Enhancements
+- **Enhanced Log Viewer**: Refactored to support real-time log streaming with ANSI color support.
+- **Smart Scroll Lock**: Implemented a robust scroll-lock mechanism that pauses auto-scrolling while reading history and resumes at the bottom.
+- **Container Details Page**: Renamed "View Logs" to "Open Details", providing a dedicated space to view output and control the container.
+- **Reactive UI**: Action buttons (Start, Stop, Restart) now automatically react to the container's running state.
+- **Dynamic Keyboard Shortcuts**: Implemented configurable shortcuts (e.g., Ctrl+S, Ctrl+R) for all major actions via a new Settings menu.
+- **Auto-Update Check**: The application now automatically checks for newer versions on GitHub during startup.
+- **Configurable Auto-Refresh**: Added an option to toggle and customize the container list refresh interval.
+- **Clickable Ports**: Container ports in the Details view are now clickable hyperlinks.
+- **Better Keyboard Control**: The application now focuses the first container on startup for immediate keyboard navigation.
+
+### Fixes & Quality
+- **Improved Stability**: Resolved multiple potential memory leaks and null pointer issues (verified via SonarQube & SpotBugs).
+- **Stream Reliability**: Fixed an issue where logs would stop updating after a container restart.
+- **Code Quality**: Achieved a passing status on the local SonarQube Quality Gate.
+
 ## Installation
 
 1. Ensure Java 22 or higher is installed
