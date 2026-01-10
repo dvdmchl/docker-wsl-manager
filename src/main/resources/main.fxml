@@ -21,6 +21,7 @@
                     </Menu>
                     <Menu text="Help">
                         <items>
+                            <MenuItem text="Check for Updates" onAction="#handleCheckForUpdatesAction"/>
                             <MenuItem text="About" onAction="#handleAboutAction"/>
                         </items>
                     </Menu>

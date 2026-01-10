@@ -373,6 +373,9 @@ public class MainController {
             autoRefreshMenuItem.setSelected(true);
         }
         setupAutoRefreshTimeline();
+
+        // Check for updates on startup
+        performUpdateCheck(true);
     }
 
     private void configureAllShortcuts() {
@@ -447,6 +450,39 @@ public class MainController {
         if (autoRefreshMenuItem != null && autoRefreshMenuItem.isSelected()) {
             autoRefreshTimeline.play();
         }
+    }
+
+    @FXML
+    private void handleCheckForUpdatesAction() {
+        performUpdateCheck(false);
+    }
+
+    private void performUpdateCheck(boolean silentIfLatest) {
+        new Thread(() -> {
+            UpdateManager updateManager = new UpdateManager();
+            Optional<UpdateManager.ReleaseInfo> update = updateManager.checkForUpdates();
+            Platform.runLater(() -> {
+                if (update.isPresent()) {
+                    UpdateManager.ReleaseInfo info = update.get();
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Update Available");
+                    alert.setHeaderText("A new version is available: " + info.getTagName());
+                    alert.setContentText("Release Notes:\n" + info.getBody() + "\n\nDo you want to view/download it?");
+                    
+                    ButtonType openBtn = new ButtonType("Open Download Page");
+                    ButtonType cancelBtn = new ButtonType("Cancel", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+                    alert.getButtonTypes().setAll(openBtn, cancelBtn);
+                    
+                    Optional<ButtonType> result = alert.showAndWait();
+                    if (result.isPresent() && result.get() == openBtn) {
+                        openInBrowser(info.getHtmlUrl());
+                    }
+                } else if (!silentIfLatest) {
+                    showAlert(Alert.AlertType.INFORMATION, "Update Check", 
+                            "You are using the latest version (" + updateManager.getCurrentVersion() + ").");
+                }
+            });
+        }).start();
     }
 
     @FXML
