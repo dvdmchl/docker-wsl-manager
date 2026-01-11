@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ public class Main extends Application {
             Scene scene = new Scene(root, 1200, 800);
 
             primaryStage.setTitle("Docker WSL Manager");
+            primaryStage.getIcons().add(new Image(Main.class.getResourceAsStream("/app_icon.png")));
             primaryStage.setScene(scene);
             primaryStage.show();
         } catch (Exception e) {
