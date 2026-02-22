@@ -8,3 +8,8 @@ The issue will be updated with the progress of the track and any relevant inform
 
 - [x] **Track: GH-32: Show space usage in volumes**
   *Link: [./tracks/GH-32-volume-size/](./tracks/GH-32-volume-size/)*
+
+---
+
+- [ ] **Track: Allow to open volume and browse files**
+  *Link: [./tracks/GH-29-open-volumes_20260222/](./tracks/GH-29-open-volumes_20260222/)*
