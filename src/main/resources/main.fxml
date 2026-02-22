@@ -114,6 +114,7 @@
                         <HBox spacing="10" style="-fx-padding: 10;">
                             <Button fx:id="refreshVolumesButton" text="⟳ Refres_h" onAction="#handleRefreshVolumes"/>
                             <Button fx:id="calculateVolumeSizesButton" text="📊 _Calculate Sizes" onAction="#handleCalculateVolumeSizes"/>
+                            <Button fx:id="openVolumeButton" text="📂 _Open Volume" onAction="#handleOpenVolumeAction"/>
                             <Button fx:id="removeVolumeButton" text="🗑 Re_move" onAction="#handleRemoveVolume"/>
                             <Button fx:id="pruneVolumesButton" text="🧹 _Prune Unused" onAction="#handlePruneVolumes"/>
                         </HBox>

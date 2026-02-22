@@ -21,6 +21,7 @@ To provide a seamless, native-feeling desktop experience for developers using Do
   - Display volume disk usage (calculated manually to optimize performance).
   - View containers using specific volumes with direct navigation support.
   - Visual highlighting of volumes used by running containers (green text).
+  - Browse volume and mount files directly in Windows Explorer.
 - **Connectivity:**
   - Auto-discovery of WSL 2 Docker instances.
   - Manual connection via IP/Port.

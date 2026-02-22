@@ -22,6 +22,7 @@ Add functionality to open Docker volumes and bind mounts directly in Windows Exp
 5.  **Error Handling:**
     *   Check for path existence before opening.
     *   Display a clear error message if the WSL distribution is not found or the volume path is inaccessible.
+    *   Specifically handle permission errors for `/var/lib/docker` by providing the `chmod` commands needed to fix access in WSL.
 
 ## Non-Functional Requirements
 *   **Responsiveness:** Path resolution and Explorer spawning should happen on a background thread to prevent UI freezing.

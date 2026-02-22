@@ -39,6 +39,7 @@ import javafx.scene.layout.VBox;
 import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
 import org.dreamabout.sw.dockerwslmanager.logic.TextFlowSelectionHandler;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
+import org.dreamabout.sw.dockerwslmanager.logic.VolumePathResolver;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -46,6 +47,8 @@ import org.dreamabout.sw.dockerwslmanager.service.VolumeUsageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Desktop;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -56,6 +59,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class MainController {
@@ -64,6 +68,7 @@ public class MainController {
     
     private final VolumeLogic volumeLogic = new VolumeLogic();
     private final VolumeUsageService volumeUsageService = new VolumeUsageService();
+    private VolumePathResolver volumePathResolver;
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
@@ -147,6 +152,8 @@ public class MainController {
     @FXML
     private Button calculateVolumeSizesButton;
     @FXML
+    private Button openVolumeButton;
+    @FXML
     private Button removeVolumeButton;
     @FXML
     private Button pruneVolumesButton;
@@ -170,6 +177,7 @@ public class MainController {
     @FXML
     public void initialize() {
         connectionManager = new DockerConnectionManager();
+        volumePathResolver = new VolumePathResolver(settingsManager.getWslDistro());
 
         updateConnectionStatus();
 
@@ -464,7 +472,28 @@ public class MainController {
                 return new SimpleStringProperty(item.getVolume().getMountpoint());
             });
 
+            volumesTable.setOnKeyPressed(event -> {
+                if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                    TreeItem<VolumeViewItem> selectedItem = volumesTable.getSelectionModel().getSelectedItem();
+                    if (selectedItem != null && !selectedItem.getValue().isGroup()) {
+                        handleOpenVolumeAction();
+                        event.consume();
+                    }
+                }
+            });
+
             volumesTable.setRowFactory(tv -> new TreeTableRow<VolumeViewItem>() {
+                {
+                    setOnMouseClicked(event -> {
+                        if (event.getClickCount() == 2 && !isEmpty()) {
+                            VolumeViewItem item = getItem();
+                            if (item != null && !item.isGroup()) {
+                                handleOpenVolumeAction();
+                            }
+                        }
+                    });
+                }
+
                 @Override
                 protected void updateItem(VolumeViewItem item, boolean empty) {
                     super.updateItem(item, empty);
@@ -525,6 +554,7 @@ public class MainController {
         shortcutManager.configureButton(removeImageButton, "action.image.remove");
         
         shortcutManager.configureButton(refreshVolumesButton, "action.volume.refresh");
+        shortcutManager.configureButton(openVolumeButton, "action.volume.open");
         shortcutManager.configureButton(removeVolumeButton, "action.volume.remove");
         shortcutManager.configureButton(pruneVolumesButton, "action.volume.prune");
         
@@ -669,6 +699,7 @@ public class MainController {
                 settingsManager.setAutoRefreshInterval(seconds);
                 settingsManager.setWslDistro(settings.getValue());
                 settingsManager.saveSettings();
+                volumePathResolver = new VolumePathResolver(settings.getValue());
                 setupAutoRefreshTimeline();
             } catch (NumberFormatException e) {
                 showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number for interval.");
@@ -1229,8 +1260,11 @@ public class MainController {
         Button stopButton = createConfiguredButton("⏹ S_top", "action.details.stop");
         Button restartButton = createConfiguredButton("↻ Res_tart", "action.details.restart");
         Button attachButton = createConfiguredButton(">_ _Attach Console", "action.details.attach");
+        Button openVolumesButton = createConfiguredButton("📂 Open _Volumes", "action.details.volumes");
         Button copyAllButton = new Button("📋 Copy All");
         copyAllButton.setOnAction(e -> selectionHandler.copyAllToClipboard());
+        
+        openVolumesButton.setOnAction(e -> handleOpenContainerVolumes(container));
         
         // Initial button state
         setButtonState(isRunning, startButton, stopButton, restartButton);
@@ -1318,18 +1352,40 @@ public class MainController {
         
         attachButton.setOnAction(e -> attachToContainer(container));
         
-        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, copyAllButton);
+        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, openVolumesButton, 
+                copyAllButton);
         layout.setBottom(footer);
         
-                detailsTab.setContent(layout);
-                
-                // Add tab and select it
-                mainTabPane.getTabs().add(detailsTab);
-                mainTabPane.getSelectionModel().select(detailsTab);
-                
-                // Start streaming logs in follow mode
-                startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
+        detailsTab.setContent(layout);
+        
+        // Add tab and select it
+        mainTabPane.getTabs().add(detailsTab);
+        mainTabPane.getSelectionModel().select(detailsTab);
+        
+        // Start streaming logs in follow mode
+        startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
+    }
+
+    private void handleOpenContainerVolumes(Container container) {
+        if (container.getMounts() == null || container.getMounts().isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "No Volumes", "This container has no configured volumes or mounts.");
+            return;
+        }
+
+        for (com.github.dockerjava.api.model.ContainerMount mount : container.getMounts()) {
+            String source = mount.getSource();
+            String name = mount.getName();
+
+            if (name != null && !name.isEmpty()) {
+                // It's a named volume
+                openVolumeInExplorer(name);
+            } else if (source != null && !source.isEmpty()) {
+                // It's a bind mount
+                CompletableFuture.supplyAsync(() -> volumePathResolver.resolveBindMountPath(source))
+                        .thenAccept(optPath -> optPath.ifPresent(this::openPathInExplorer));
             }
+        }
+    }
     private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
                                    javafx.scene.control.ScrollPane logScrollPane, 
                                    String containerId, 
@@ -1721,6 +1777,62 @@ public class MainController {
             group.getValue().setSizeBytes(groupTotal);
         }
         logger.info("Updated sizes for {} volumes in UI", updatedCount);
+    }
+
+    @FXML
+    private void handleOpenVolumeAction() {
+        InspectVolumeResponse selected = getSelectedVolume();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a volume to open.");
+            return;
+        }
+
+        openVolumeInExplorer(selected.getName());
+    }
+
+    private void openVolumeInExplorer(String volumeName) {
+        CompletableFuture.supplyAsync(() -> volumePathResolver.resolveNamedVolumePath(volumeName))
+                .thenAccept(optPath -> optPath.ifPresent(this::openPathInExplorer));
+    }
+
+    private void openPathInExplorer(String path) {
+        if (path == null) {
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                File file = new File(path);
+                if (file.exists()) {
+                    if (Desktop.isDesktopSupported()) {
+                        Desktop.getDesktop().open(file);
+                    } else {
+                        // Fallback for some environments
+                        new ProcessBuilder("explorer.exe", path).start();
+                    }
+                } else {
+                    Platform.runLater(() -> {
+                        String msg = "The resolved path does not exist or is inaccessible: " + path + 
+                                "\n\nPossible reasons:\n" +
+                                "1. WSL distribution is not running.\n" +
+                                "2. The 'WSL Distro' in General Settings is incorrect.\n" +
+                                "3. Access is denied due to WSL permissions (Common for /var/lib/docker).";
+                        
+                        if (path.contains("var\\lib\\docker")) {
+                            msg += "\n\nTo fix permissions, run these commands in your WSL terminal:\n" +
+                                   "  sudo chmod 755 /var/lib/docker\n" +
+                                   "  sudo chmod 755 /var/lib/docker/volumes";
+                        }
+                        
+                        showAlert(Alert.AlertType.ERROR, "Access Denied / Path Not Found", msg);
+                    });
+                }
+            } catch (Exception e) {
+                logger.error("Failed to open path in explorer: {}", path, e);
+                Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", 
+                        "Failed to open explorer: " + e.getMessage()));
+            }
+        });
     }
 
     @FXML
