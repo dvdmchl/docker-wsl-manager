@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -59,8 +60,11 @@ public class VolumeUsageService {
                     logger.error("'docker system df' failed with exit code: {}", exitCode);
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             logger.error("Failed to fetch volume sizes", e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
         }
         return volumeSizes;
     }
@@ -84,7 +88,7 @@ public class VolumeUsageService {
             }
 
             valueStr = sizeStr.substring(0, i).trim();
-            unit = sizeStr.substring(i).trim().toUpperCase();
+            unit = sizeStr.substring(i).trim().toUpperCase(java.util.Locale.ROOT);
 
             if (valueStr.isEmpty()) {
                 return 0L;
@@ -98,7 +102,7 @@ public class VolumeUsageService {
                 case "TB", "T" -> (long) (value * 1024 * 1024 * 1024 * 1024);
                 default -> (long) value; // Assuming B or no unit
             };
-        } catch (Exception e) {
+        } catch (NumberFormatException | IndexOutOfBoundsException e) {
             logger.warn("Failed to parse size string: {}", sizeStr, e);
             return 0L;
         }

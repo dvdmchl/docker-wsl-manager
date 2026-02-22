@@ -99,7 +99,7 @@ public class TextFlowSelectionHandler {
         }
     }
 
-    public void clearSelection() {
+    public final void clearSelection() {
         selectionStart = -1;
         selectionEnd = -1;
         selectionPath.getElements().clear();

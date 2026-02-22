@@ -13,6 +13,16 @@
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
 
+    <!-- Suppress exposure of internal JavaFX properties and lists intended for binding -->
+    <Match>
+        <Class name="org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.dreamabout.sw.dockerwslmanager.logic.TextFlowSelectionHandler"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
     <!-- Suppress false positives in MainController due to Java version parsing issues -->
     <Match>
         <Class name="org.dreamabout.sw.dockerwslmanager.MainController"/>

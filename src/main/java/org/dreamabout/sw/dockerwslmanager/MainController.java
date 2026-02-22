@@ -390,6 +390,28 @@ public class MainController {
                 }
             });
 
+            volumeContainersColumn.setComparator((list1, list2) -> {
+                if (list1 == null && list2 == null) {
+                    return 0;
+                }
+                if (list1 == null) {
+                    return -1;
+                }
+                if (list2 == null) {
+                    return 1;
+                }
+                
+                int sizeComp = Integer.compare(list1.size(), list2.size());
+                if (sizeComp != 0) {
+                    return sizeComp;
+                }
+                
+                if (list1.isEmpty()) {
+                    return 0;
+                }
+                return list1.get(0).compareTo(list2.get(0));
+            });
+
             volumeSizeColumn.setCellValueFactory(data ->
                     data.getValue().getValue().sizeStringProperty());
 
