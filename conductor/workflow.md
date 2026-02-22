@@ -58,7 +58,7 @@ All tasks follow a strict lifecycle:
 
 8. **Commit Code Changes (USER ACTION REQUIRED):**
    - Stage all code changes related to the task.
-   - Propose a clear, concise commit message e.g, `feat(ui): Create basic HTML structure for calculator`.
+   - Propose a clear, concise commit message following the format `#<issue_number> - <type>(<scope>): <description>` (e.g., `#39 - feat(ui): Create basic HTML structure for calculator`).
    - **STOP:** Ask the user to commit the changes manually.
    - Wait for user confirmation before proceeding.
 
@@ -77,7 +77,7 @@ All tasks follow a strict lifecycle:
 
 11. **Commit Plan Update (USER ACTION REQUIRED):**
     - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Propose a descriptive commit message (e.g., `conductor(plan): Mark task 'Create user model' as complete`).
+    - **Action:** Propose a descriptive commit message following the format `#<issue_number> - conductor(plan): Mark task '<task_name>' as complete` (e.g., `#39 - conductor(plan): Mark task 'Create user model' as complete`).
     - **STOP:** Ask the user to commit the changes manually.
 
 ### Phase Completion Verification and Checkpointing Protocol
@@ -131,7 +131,7 @@ All tasks follow a strict lifecycle:
 
 6. **Create Checkpoint Commit (USER ACTION REQUIRED):**
     -   Stage all changes. If no changes occurred in this step, ask the user to create an empty commit.
-    -   Propose a clear and concise message (e.g., `conductor(checkpoint): Checkpoint end of Phase X`).
+    -   Propose a clear and concise message following the format `#<issue_number> - conductor(checkpoint): Checkpoint end of Phase X` (e.g., `#39 - conductor(checkpoint): Checkpoint end of Phase 1`).
     -   **STOP:** Ask the user to commit manually.
 
 7.  **Attach Auditable Verification Report using Git Notes:**
@@ -145,7 +145,7 @@ All tasks follow a strict lifecycle:
 
 9. **Commit Plan Update (USER ACTION REQUIRED):**
     - **Action:** Stage the modified `plan.md` file.
-    - **Action:** Propose a descriptive commit message following the format `conductor(plan): Mark phase '<PHASE NAME>' as complete`.
+    - **Action:** Propose a descriptive commit message following the format `#<issue_number> - conductor(plan): Mark phase '<PHASE NAME>' as complete` (e.g., `#39 - conductor(plan): Mark phase 'Phase 1' as complete`).
     - **STOP:** Ask the user to commit manually.
 
 10.  **Announce Completion:** Inform the user that the phase is complete and the checkpoint has been created, with the detailed verification report attached as a git note.
@@ -251,8 +251,10 @@ Before requesting review:
 ## Commit Guidelines
 
 ### Message Format
+**CRITICAL:** Every commit MUST have the format `#issue_number - commit message`.
+
 ```
-<type>(<scope>): <description>
+#issue_number - <type>(<scope>): <description>
 
 [optional body]
 
@@ -270,10 +272,10 @@ Before requesting review:
 
 ### Examples
 ```bash
-git commit -m "feat(auth): Add remember me functionality"
-git commit -m "fix(posts): Correct excerpt generation for short posts"
-git commit -m "test(comments): Add tests for emoji reaction limits"
-git commit -m "style(mobile): Improve button touch targets"
+git commit -m "#39 - feat(auth): Add remember me functionality"
+git commit -m "#39 - fix(posts): Correct excerpt generation for short posts"
+git commit -m "#39 - archive track"
+git commit -m "#12 - style(mobile): Improve button touch targets"
 ```
 
 ## Definition of Done
