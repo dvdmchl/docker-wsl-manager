@@ -8,3 +8,8 @@ The issue will be updated with the progress of the track and any relevant inform
 
 - [x] **Track: GH-32: Show space usage in volumes**
   *Link: [./tracks/GH-32-volume-size/](./tracks/GH-32-volume-size/)*
+
+---
+
+- [ ] **Track: Allow to show container configuration in details tab**
+  *Link: [./tracks/container-config_20260222/](./tracks/container-config_20260222/)*
