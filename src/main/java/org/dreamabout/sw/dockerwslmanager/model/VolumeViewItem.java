@@ -24,11 +24,6 @@ public class VolumeViewItem {
         this.unused = unused;
     }
 
-    // Legacy constructor for backward compatibility if needed, though we should update calls
-    public VolumeViewItem(InspectVolumeResponse volume, String name) {
-        this(volume, name, false);
-    }
-
     public String getName() {
         return name;
     }

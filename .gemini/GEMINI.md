@@ -10,7 +10,12 @@ This document contains useful information, instructions, and context for the Gem
 
 -   **NO GIT COMMITS**: **NEVER** use `git commit`. The user will always commit changes manually. You may stage changes (`git add`) if necessary to verify them, but never commit.
 -   **NO GIT BRANCH/CHECKOUT**: **NEVER** create branches or checkout other branches unless explicitly instructed.
--   **QUALITY CHECKS**: Before signaling task completion, **ALWAYS** run `mvn clean verify` to ensure Checkstyle and SpotBugs pass. If a SonarQube server is available, run `sonar:sonar` as well.
+-   **QUALITY CHECKS**: Before signaling task completion, **ALWAYS** run `mvn clean verify` to ensure Checkstyle and SpotBugs pass.
+-   **SONARQUBE**: **ALWAYS** run SonarQube analysis with the authentication token:
+    ```bash
+    mvn verify -Psonar sonar:sonar -Dsonar.token=$env:SONAR_TOKEN
+    ```
+    The build **will fail** if the Quality Gate is not passed. Any duplication, code smell, or bug must be fixed immediately.
 
 ### Tech Stack
 
@@ -94,14 +99,6 @@ run.bat
 -   **Do not write disabled tests**: Every test method must contain meaningful assertions or be removed.
 
 ### Architecture & Code Quality
-
--   **Sonar Analysis**:
-    -   **Execution**: SonarQube runs locally and **explicitly**.
-    -   **Command**: To run Sonar analysis, use:
-        ```bash
-        mvn verify -Psonar sonar:sonar
-        ```
-    -   **Rule**: The build **will fail** if the Quality Gate is not passed. Any duplication, code smell, or bug must be fixed immediately.
 
 -   **Static Analysis (Checkstyle & SpotBugs)**:
     -   **Checkstyle**: Enforces coding style and specific best practices.

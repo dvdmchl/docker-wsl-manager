@@ -6,6 +6,7 @@ import com.github.dockerjava.api.model.ContainerPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Network;
+import com.github.dockerjava.api.model.PruneResponse;
 import com.github.dockerjava.api.model.PruneType;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -32,6 +33,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -52,7 +54,9 @@ import java.util.stream.Collectors;
 
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
-    private static final String UNGROUPED_LABEL = "Ungrouped";
+    private static final String UNGROUPED_LABEL = VolumeLogic.UNGROUPED_LABEL;
+    
+    private final VolumeLogic volumeLogic = new VolumeLogic();
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
@@ -1535,10 +1539,15 @@ public class MainController {
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                connectionManager.getDockerClient().pruneCmd(PruneType.VOLUMES).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Unused volumes pruned successfully.");
+                PruneResponse response = connectionManager.getDockerClient()
+                        .pruneCmd(PruneType.VOLUMES)
+                        .exec();
+                
+                long reclaimed = response.getSpaceReclaimed() != null ? response.getSpaceReclaimed() : 0;
+                String msg = "Unused volumes pruned successfully.\nReclaimed space: " + formatSize(reclaimed);
+                showAlert(Alert.AlertType.INFORMATION, "Success", msg);
                 refreshVolumes();
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 logger.error("Failed to prune volumes", e);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to prune volumes: " + e.getMessage());
             }
@@ -1775,38 +1784,8 @@ public class MainController {
                     .exec()
                     .getVolumes();
 
-            List<InspectVolumeResponse> danglingVolumes = connectionManager.getDockerClient()
-                    .listVolumesCmd()
-                    .withFilter("dangling", Arrays.asList("true"))
-                    .exec()
-                    .getVolumes();
-            
-            Set<String> danglingNames = new HashSet<>();
-            if (danglingVolumes != null) {
-                for (InspectVolumeResponse vol : danglingVolumes) {
-                    danglingNames.add(vol.getName());
-                }
-            }
-
-            // Group volumes
-            Map<String, List<InspectVolumeResponse>> grouped = new TreeMap<>();
-            List<InspectVolumeResponse> ungrouped = new ArrayList<>();
-
-            for (InspectVolumeResponse vol : volumes) {
-                String project = null;
-                if (vol.getLabels() != null) {
-                    project = vol.getLabels().get("com.docker.compose.project");
-                }
-
-                if (project != null && !project.isEmpty()) {
-                    grouped.computeIfAbsent(project, k -> new ArrayList<>()).add(vol);
-                } else {
-                    ungrouped.add(vol);
-                }
-            }
-            if (!ungrouped.isEmpty()) {
-                grouped.put(UNGROUPED_LABEL, ungrouped);
-            }
+            Set<String> danglingNames = getDanglingVolumeNames();
+            Map<String, List<InspectVolumeResponse>> grouped = volumeLogic.groupVolumes(volumes);
 
             TreeItem<VolumeViewItem> root = new TreeItem<>(new VolumeViewItem("Root"));
             root.setExpanded(true);
@@ -1826,6 +1805,21 @@ public class MainController {
             logger.error("Failed to refresh volumes", e);
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh volumes: " + e.getMessage());
         }
+    }
+
+    private Set<String> getDanglingVolumeNames() {
+        try {
+            List<InspectVolumeResponse> danglingVolumes = connectionManager.getDockerClient()
+                    .listVolumesCmd()
+                    .withFilter("dangling", Collections.singletonList("true"))
+                    .exec()
+                    .getVolumes();
+
+            return volumeLogic.extractVolumeNames(danglingVolumes);
+        } catch (Exception e) {
+            logger.warn("Failed to fetch dangling volumes", e);
+        }
+        return Collections.emptySet();
     }
 
     private void refreshNetworks() {
