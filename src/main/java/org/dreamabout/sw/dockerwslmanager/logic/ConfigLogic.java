@@ -14,7 +14,9 @@ public class ConfigLogic {
 
     public ConfigLogic() {
         this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
         this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        this.objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     }
 
     public InspectContainerResponse inspectContainer(DockerClient client, String containerId) {
