@@ -20,6 +20,9 @@
 - [x] Task: Conductor - User Manual Verification 'Controller & UI Integration' (Protocol in workflow.md)
 
 ## Phase 3: Verification and Polishing
-- [ ] Task: Ensure smooth navigation and UI responsiveness.
-- [ ] Task: Verify that the column sorts correctly (alphabetically by the first container name or count).
-- [ ] Task: Conductor - User Manual Verification 'Verification and Polishing' (Protocol in workflow.md)
+- [x] Task: Ensure smooth navigation and UI responsiveness.
+- [x] Task: Verify that the column sorts correctly (alphabetically by the first container name or count).
+- [x] Task: Conductor - User Manual Verification 'Verification and Polishing' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 67007db
