@@ -40,6 +40,7 @@ import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
 import org.dreamabout.sw.dockerwslmanager.logic.TextFlowSelectionHandler;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumePathResolver;
+import org.dreamabout.sw.dockerwslmanager.logic.ConfigLogic;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -68,6 +69,7 @@ public class MainController {
     
     private final VolumeLogic volumeLogic = new VolumeLogic();
     private final VolumeUsageService volumeUsageService = new VolumeUsageService();
+    private final ConfigLogic configLogic = new ConfigLogic();
     private VolumePathResolver volumePathResolver;
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
@@ -1260,11 +1262,13 @@ public class MainController {
         Button stopButton = createConfiguredButton("⏹ S_top", "action.details.stop");
         Button restartButton = createConfiguredButton("↻ Res_tart", "action.details.restart");
         Button attachButton = createConfiguredButton(">_ _Attach Console", "action.details.attach");
+        Button configButton = createConfiguredButton("⚙ _Config", "action.details.config");
         Button openVolumesButton = createConfiguredButton("📂 Open _Volumes", "action.details.volumes");
         Button copyAllButton = new Button("📋 Copy All");
         copyAllButton.setOnAction(e -> selectionHandler.copyAllToClipboard());
         
         openVolumesButton.setOnAction(e -> handleOpenContainerVolumes(container));
+        configButton.setOnAction(e -> openContainerConfig(containerId, containerName));
         
         // Initial button state
         setButtonState(isRunning, startButton, stopButton, restartButton);
@@ -1352,8 +1356,8 @@ public class MainController {
         
         attachButton.setOnAction(e -> attachToContainer(container));
         
-        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, openVolumesButton, 
-                copyAllButton);
+        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, configButton, 
+                openVolumesButton, copyAllButton);
         layout.setBottom(footer);
         
         detailsTab.setContent(layout);
@@ -1386,6 +1390,77 @@ public class MainController {
             }
         }
     }
+
+    private void openContainerConfig(String containerId, String containerName) {
+        String tabId = "config-" + containerId;
+        
+        // Check if tab already exists
+        for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
+            if (tabId.equals(tab.getUserData())) {
+                mainTabPane.getSelectionModel().select(tab);
+                return;
+            }
+        }
+
+        javafx.scene.control.Tab configTab = new javafx.scene.control.Tab("Config: " + containerName);
+        configTab.setClosable(true);
+        configTab.setUserData(tabId);
+
+        VBox layout = new VBox(10);
+        layout.setPadding(new javafx.geometry.Insets(10));
+
+        HBox toolbar = new HBox(10);
+        toolbar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search...");
+        searchField.setPrefWidth(300);
+
+        Button copyButton = new Button("📋 Copy Config");
+        
+        toolbar.getChildren().addAll(new Label("Filter:"), searchField, copyButton);
+
+        TextArea configTextArea = new TextArea();
+        configTextArea.setEditable(false);
+        configTextArea.setStyle("-fx-font-family: 'Courier New', monospace;");
+        VBox.setVgrow(configTextArea, javafx.scene.layout.Priority.ALWAYS);
+
+        layout.getChildren().addAll(toolbar, configTextArea);
+        configTab.setContent(layout);
+
+        // Fetch and display config
+        CompletableFuture.supplyAsync(() -> {
+            var response = configLogic.inspectContainer(connectionManager.getDockerClient(), containerId);
+            return configLogic.formatAsPrettyJson(response);
+        }).thenAccept(json -> Platform.runLater(() -> configTextArea.setText(json)));
+
+        // Copy logic
+        copyButton.setOnAction(e -> {
+            javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+            javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+            content.putString(configTextArea.getText());
+            clipboard.setContent(content);
+        });
+
+        // Search logic
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.isEmpty()) {
+                configTextArea.deselect();
+                return;
+            }
+            String text = configTextArea.getText();
+            int index = text.toLowerCase().indexOf(newVal.toLowerCase());
+            if (index >= 0) {
+                configTextArea.selectRange(index, index + newVal.length());
+                // TextArea doesn't have built-in "scroll to selection" that works reliably with programmatic selection
+                // but selectRange usually does it if it gains focus or already has it.
+            }
+        });
+
+        mainTabPane.getTabs().add(configTab);
+        mainTabPane.getSelectionModel().select(configTab);
+    }
+
     private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
                                    javafx.scene.control.ScrollPane logScrollPane, 
                                    String containerId, 

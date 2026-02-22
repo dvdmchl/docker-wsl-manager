@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [ ] **Track: Allow to show container configuration in details tab**
+- [x] **Track: Allow to show container configuration in details tab**
   *Link: [./tracks/container-config_20260222/](./tracks/container-config_20260222/)*

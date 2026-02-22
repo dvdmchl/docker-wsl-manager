@@ -4,6 +4,7 @@
 - **Language:** Java 22
 - **Framework:** JavaFX 25.0.1 (using FXML for layout)
 - **Docker Client:** docker-java 3.7.0 (with Apache HttpClient 5 transport)
+- **JSON Processing:** Jackson Databind 2.18.2
 
 ## Build & Dependencies
 - **Build System:** Maven
