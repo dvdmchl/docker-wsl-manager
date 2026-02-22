@@ -22,3 +22,6 @@
     - [x] Start a container and refresh volumes -> text turns green.
     - [x] Stop the container and refresh volumes -> text returns to normal/grey.
 - [x] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions ed88094
