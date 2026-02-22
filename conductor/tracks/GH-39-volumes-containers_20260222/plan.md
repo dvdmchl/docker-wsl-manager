@@ -10,14 +10,14 @@
 - [x] Task: Conductor - User Manual Verification 'Logic Implementation' (Protocol in workflow.md)
 
 ## Phase 2: Controller & UI Integration
-- [ ] Task: Modify `MainController.refreshVolumes()` to fetch containers and apply the mapping.
-    - [ ] Fetch the list of all containers (`listContainersCmd().withShowAll(true)`).
-    - [ ] Update `VolumeViewItem` instances with the names of containers using them.
-- [ ] Task: Update `main.fxml` to add the "Containers" column.
-- [ ] Task: Implement custom cell factory for the "Containers" column.
-    - [ ] Use `FlowPane` or `HBox` to display comma-separated `Hyperlink` objects for each container name.
-    - [ ] Implement the navigation logic: switch to "Containers" tab and select the matching item.
-- [ ] Task: Conductor - User Manual Verification 'Controller & UI Integration' (Protocol in workflow.md)
+- [x] Task: Modify `MainController.refreshVolumes()` to fetch containers and apply the mapping.
+    - [x] Fetch the list of all containers (`listContainersCmd().withShowAll(true)`).
+    - [x] Update `VolumeViewItem` instances with the names of containers using them.
+- [x] Task: Update `main.fxml` to add the "Containers" column.
+- [x] Task: Implement custom cell factory for the "Containers" column.
+    - [x] Use `FlowPane` or `HBox` to display comma-separated `Hyperlink` objects for each container name.
+    - [x] Implement the navigation logic: switch to "Containers" tab and select the matching item.
+- [x] Task: Conductor - User Manual Verification 'Controller & UI Integration' (Protocol in workflow.md)
 
 ## Phase 3: Verification and Polishing
 - [ ] Task: Ensure smooth navigation and UI responsiveness.

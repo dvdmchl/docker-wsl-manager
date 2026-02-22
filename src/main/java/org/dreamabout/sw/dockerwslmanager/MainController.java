@@ -134,6 +134,8 @@ public class MainController {
     @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeNameColumn;
     @FXML
+    private TreeTableColumn<VolumeViewItem, javafx.collections.ObservableList<String>> volumeContainersColumn;
+    @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeSizeColumn;
     @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeDriverColumn;
@@ -355,6 +357,38 @@ public class MainController {
         if (volumeNameColumn != null) {
             volumeNameColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getValue().getName()));
+
+            volumeContainersColumn.setCellValueFactory(data ->
+                    javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().getValue().getContainerNames()));
+
+            volumeContainersColumn.setCellFactory(col -> new javafx.scene.control.TreeTableCell<>() {
+                private final FlowPane flowPane = new FlowPane();
+
+                {
+                    flowPane.setHgap(5);
+                    flowPane.setVgap(2);
+                }
+
+                @Override
+                protected void updateItem(javafx.collections.ObservableList<String> containerNames, boolean empty) {
+                    super.updateItem(containerNames, empty);
+                    if (empty || containerNames == null || containerNames.isEmpty()) {
+                        setGraphic(null);
+                    } else {
+                        flowPane.getChildren().clear();
+                        for (int i = 0; i < containerNames.size(); i++) {
+                            String name = containerNames.get(i);
+                            Hyperlink link = new Hyperlink(name);
+                            link.setOnAction(e -> navigateToContainer(name));
+                            flowPane.getChildren().add(link);
+                            if (i < containerNames.size() - 1) {
+                                flowPane.getChildren().add(new Label(","));
+                            }
+                        }
+                        setGraphic(flowPane);
+                    }
+                }
+            });
 
             volumeSizeColumn.setCellValueFactory(data ->
                     data.getValue().getValue().sizeStringProperty());
@@ -1893,6 +1927,12 @@ public class MainController {
                     .exec()
                     .getVolumes();
 
+            List<Container> containers = connectionManager.getDockerClient()
+                    .listContainersCmd()
+                    .withShowAll(true)
+                    .exec();
+
+            Map<String, List<String>> volumeToContainers = volumeLogic.mapVolumesToContainers(containers);
             Set<String> danglingNames = getDanglingVolumeNames();
             Map<String, List<InspectVolumeResponse>> grouped = volumeLogic.groupVolumes(volumes);
 
@@ -1904,7 +1944,12 @@ public class MainController {
                 groupItem.setExpanded(true);
                 for (InspectVolumeResponse vol : entry.getValue()) {
                     boolean unused = danglingNames.contains(vol.getName());
-                    groupItem.getChildren().add(new TreeItem<>(new VolumeViewItem(vol, vol.getName(), unused)));
+                    VolumeViewItem item = new VolumeViewItem(vol, vol.getName(), unused);
+                    List<String> containerNames = volumeToContainers.get(vol.getName());
+                    if (containerNames != null) {
+                        item.getContainerNames().setAll(containerNames);
+                    }
+                    groupItem.getChildren().add(new TreeItem<>(item));
                 }
                 root.getChildren().add(groupItem);
             }
@@ -2045,6 +2090,38 @@ public class MainController {
             return null;
         }
         return selected.getValue().getVolume();
+    }
+
+    private void navigateToContainer(String containerName) {
+        if (containerName == null || containerName.isEmpty()) {
+            return;
+        }
+
+        // 1. Switch to Containers tab
+        for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
+            if ("Containers".equals(tab.getText())) {
+                mainTabPane.getSelectionModel().select(tab);
+                break;
+            }
+        }
+
+        // 2. Find and select container in the tree
+        TreeItem<ContainerViewItem> root = containersTable.getRoot();
+        if (root == null) {
+            return;
+        }
+
+        for (TreeItem<ContainerViewItem> group : root.getChildren()) {
+            for (TreeItem<ContainerViewItem> item : group.getChildren()) {
+                ContainerViewItem containerItem = item.getValue();
+                if (!containerItem.isGroup() && containerName.equals(containerItem.getName())) {
+                    containersTable.getSelectionModel().select(item);
+                    containersTable.scrollTo(containersTable.getSelectionModel().getSelectedIndex());
+                    containersTable.requestFocus();
+                    return;
+                }
+            }
+        }
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

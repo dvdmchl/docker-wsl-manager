@@ -103,6 +103,7 @@
                         <TreeTableView fx:id="volumesTable" showRoot="false">
                             <columns>
                                 <TreeTableColumn fx:id="volumeNameColumn" text="Name" prefWidth="300"/>
+                                <TreeTableColumn fx:id="volumeContainersColumn" text="Containers" prefWidth="250"/>
                                 <TreeTableColumn fx:id="volumeSizeColumn" text="Size" prefWidth="150"/>
                                 <TreeTableColumn fx:id="volumeDriverColumn" text="Driver" prefWidth="150"/>
                                 <TreeTableColumn fx:id="volumeMountpointColumn" text="Mountpoint" prefWidth="400"/>
