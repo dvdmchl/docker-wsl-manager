@@ -8,8 +8,3 @@ The issue will be updated with the progress of the track and any relevant inform
 
 - [x] **Track: GH-32: Show space usage in volumes**
   *Link: [./tracks/GH-32-volume-size/](./tracks/GH-32-volume-size/)*
-
----
-
-- [x] **Track: GH-36: Allow to copy text from container Details log window**
-  *Link: [./tracks/GH-36-log-copy_20260222/](./tracks/GH-36-log-copy_20260222/)*
