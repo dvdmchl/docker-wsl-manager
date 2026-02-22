@@ -5,6 +5,8 @@ import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
 
 public class VolumeViewItem {
@@ -14,6 +16,7 @@ public class VolumeViewItem {
     private final boolean unused;
     private final LongProperty sizeBytes = new SimpleLongProperty(0);
     private final StringProperty sizeString = new SimpleStringProperty("-");
+    private final ObservableList<String> containerNames = FXCollections.observableArrayList();
 
     // Constructor for group
     public VolumeViewItem(String name) {
@@ -66,5 +69,9 @@ public class VolumeViewItem {
 
     public StringProperty sizeStringProperty() {
         return sizeString;
+    }
+
+    public ObservableList<String> getContainerNames() {
+        return containerNames;
     }
 }

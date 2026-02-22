@@ -1,8 +1,11 @@
 package org.dreamabout.sw.dockerwslmanager.logic;
 
 import com.github.dockerjava.api.command.InspectVolumeResponse;
+import com.github.dockerjava.api.model.Container;
+import com.github.dockerjava.api.model.ContainerMount;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,5 +49,35 @@ public class VolumeLogic {
         return volumes.stream()
                 .map(InspectVolumeResponse::getName)
                 .collect(Collectors.toSet());
+    }
+
+    public Map<String, List<String>> mapVolumesToContainers(List<Container> containers) {
+        if (containers == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, List<String>> volumeToContainers = new HashMap<>();
+
+        for (Container container : containers) {
+            String containerName = extractPrimaryName(container);
+            if (container.getMounts() != null) {
+                for (ContainerMount mount : container.getMounts()) {
+                    String volumeName = mount.getName();
+                    if (volumeName != null && !volumeName.isEmpty()) {
+                        volumeToContainers.computeIfAbsent(volumeName, k -> new ArrayList<>()).add(containerName);
+                    }
+                }
+            }
+        }
+
+        return volumeToContainers;
+    }
+
+    private String extractPrimaryName(Container container) {
+        if (container.getNames() != null && container.getNames().length > 0) {
+            String name = container.getNames()[0];
+            return name.startsWith("/") ? name.substring(1) : name;
+        }
+        return container.getId().substring(0, 12);
     }
 }
