@@ -11,19 +11,23 @@
 - [x] Task: Conductor - User Manual Verification 'Foundation & Path Logic' (Protocol in workflow.md)
 
 ## Phase 2: Volumes Tab Integration
-- [ ] Task: Update `main.fxml` to add the "Open Volume" button to the Volumes tab toolbar.
-- [ ] Task: Implement `handleOpenVolumeAction` in `MainController`.
-    - [ ] Logic to resolve the path for the selected volume and launch Windows Explorer.
-    - [ ] Use `CompletableFuture` to ensure the UI remains responsive during path resolution.
-- [ ] Task: Update `shortcuts.properties` and `ShortcutManager` to support the new action.
-- [ ] Task: Conductor - User Manual Verification 'Volumes Tab Integration' (Protocol in workflow.md)
+- [x] Task: Update `main.fxml` to add the "Open Volume" button to the Volumes tab toolbar.
+- [x] Task: Implement `handleOpenVolumeAction` in `MainController`.
+    - [x] Logic to resolve the path for the selected volume and launch Windows Explorer.
+    - [x] Use `CompletableFuture` to ensure the UI remains responsive during path resolution.
+- [x] Task: Update `shortcuts.properties` and `ShortcutManager` to support the new action.
+- [x] Task: Conductor - User Manual Verification 'Volumes Tab Integration' (Protocol in workflow.md)
 
 ## Phase 3: Container Details Integration
-- [ ] Task: Update `createDetailsTab` in `MainController` to include the "Open Volumes" button in the header or toolbar area.
-- [ ] Task: Implement logic to extract all mounts from the `Container` object and open them in Explorer.
-- [ ] Task: Conductor - User Manual Verification 'Container Details Integration' (Protocol in workflow.md)
+- [x] Task: Update `createDetailsTab` in `MainController` to include the "Open Volumes" button in the header or toolbar area.
+- [x] Task: Implement logic to extract all mounts from the `Container` object and open them in Explorer.
+- [x] Task: Conductor - User Manual Verification 'Container Details Integration' (Protocol in workflow.md)
 
 ## Phase 4: Auto-detection & Polishing
-- [ ] Task: Enhance `DockerConnectionManager` or `VolumePathResolver` to attempt auto-detection of the active WSL distro if not explicitly configured.
-- [ ] Task: Add error handling for cases where the network path is unreachable (e.g., WSL stopped).
-- [ ] Task: Conductor - User Manual Verification 'Auto-detection & Polishing' (Protocol in workflow.md)
+- [x] Task: Enhance `DockerConnectionManager` or `VolumePathResolver` to attempt auto-detection of the active WSL distro if not explicitly configured.
+- [x] Task: Add error handling for cases where the network path is unreachable (e.g., WSL stopped).
+    - [x] Update `openPathInExplorer` to show a detailed alert with `chmod` instructions if access is denied.
+- [x] Task: Conductor - User Manual Verification 'Auto-detection & Polishing' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions 7176532
