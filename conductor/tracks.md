@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [ ] **Track: GH-36: Allow to copy text from container Details log window**
+- [x] **Track: GH-36: Allow to copy text from container Details log window**
   *Link: [./tracks/GH-36-log-copy_20260222/](./tracks/GH-36-log-copy_20260222/)*

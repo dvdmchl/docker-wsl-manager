@@ -10,7 +10,8 @@ To provide a seamless, native-feeling desktop experience for developers using Do
 - **Container Management:**
   - View running and stopped containers.
   - Start, stop, restart, and remove containers.
-  - Inspect container logs and details.
+  - Inspect container logs and details (supporting text selection, copy all, and standard shortcuts).
+  - Safe interactive console access via 'docker exec'.
 - **Image Management:**
   - List available images.
   - Pull new images from registries.

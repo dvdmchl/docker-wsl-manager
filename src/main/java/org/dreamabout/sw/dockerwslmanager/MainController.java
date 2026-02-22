@@ -28,12 +28,15 @@ import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
 import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
+import org.dreamabout.sw.dockerwslmanager.logic.TextFlowSelectionHandler;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
@@ -1081,10 +1084,27 @@ public class MainController {
 
         javafx.scene.control.ScrollPane logScrollPane = new javafx.scene.control.ScrollPane(logTextFlow);
         logScrollPane.setFitToWidth(true);
-        logScrollPane.setFitToHeight(true);
+        logScrollPane.setFitToHeight(false);
         logScrollPane.setStyle("-fx-background: black; -fx-background-color: black;");
         
         layout.setCenter(logScrollPane);
+        
+        // Create selection handler
+        TextFlowSelectionHandler selectionHandler = new TextFlowSelectionHandler(logTextFlow);
+        logTextFlow.setUserData(selectionHandler); // Store for use in log streaming logic
+
+        // Add copy and select all shortcuts
+        layout.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isControlDown() && !event.isAltDown()) {
+                if (event.getCode() == KeyCode.C) {
+                    selectionHandler.copyToClipboard();
+                    event.consume();
+                } else if (event.getCode() == KeyCode.A) {
+                    selectionHandler.selectAll();
+                    event.consume();
+                }
+            }
+        });
         
         // Create footer with control buttons
         HBox footer = new HBox(10);
@@ -1094,6 +1114,8 @@ public class MainController {
         Button stopButton = createConfiguredButton("⏹ S_top", "action.details.stop");
         Button restartButton = createConfiguredButton("↻ Res_tart", "action.details.restart");
         Button attachButton = createConfiguredButton(">_ _Attach Console", "action.details.attach");
+        Button copyAllButton = new Button("📋 Copy All");
+        copyAllButton.setOnAction(e -> selectionHandler.copyAllToClipboard());
         
         // Initial button state
         setButtonState(isRunning, startButton, stopButton, restartButton);
@@ -1181,7 +1203,7 @@ public class MainController {
         
         attachButton.setOnAction(e -> attachToContainer(container));
         
-        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton);
+        footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, copyAllButton);
         layout.setBottom(footer);
         
                 detailsTab.setContent(layout);
@@ -1249,8 +1271,13 @@ public class MainController {
 
                             appendAnsiText(logTextFlow, textToAppend);
 
-                            // Auto-scroll ONLY if we were already at the bottom
-                            if (wasAtBottom) {
+                            // Auto-scroll ONLY if we were already at the bottom AND not currently selecting text
+                            boolean isSelecting = false;
+                            if (logTextFlow.getUserData() instanceof TextFlowSelectionHandler handler) {
+                                isSelecting = handler.isSelecting();
+                            }
+
+                            if (wasAtBottom && !isSelecting) {
                                 // Defer scroll to ensure layout is updated
                                 Platform.runLater(() -> {
                                     logScrollPane.layout(); // Force layout update
@@ -1397,8 +1424,23 @@ public class MainController {
             String containerId = container.getId();
             String containerName = getContainerName(container);
 
+            // Fetch the latest state to avoid stale data (especially in Details tabs)
+            List<Container> containers = connectionManager.getDockerClient()
+                    .listContainersCmd()
+                    .withShowAll(true)
+                    .withIdFilter(Collections.singleton(containerId))
+                    .exec();
+
+            if (containers.isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, "Container Not Found",
+                        "Container " + containerName + " no longer exists.");
+                return;
+            }
+
+            Container latestContainer = containers.get(0);
+
             // Check if container is running
-            if (!container.getState().equalsIgnoreCase("running")) {
+            if (latestContainer.getState() == null || !latestContainer.getState().equalsIgnoreCase("running")) {
                 showAlert(Alert.AlertType.WARNING, "Container Not Running",
                         "Container " + containerName + " is not running. Please start it first.");
                 return;
@@ -1415,13 +1457,13 @@ public class MainController {
                 dockerCommand.append("set DOCKER_HOST=").append(dockerHost).append(" && ");
             }
 
-            dockerCommand.append("docker attach ").append(containerId);
+            dockerCommand.append("docker exec -it ").append(containerId).append(" sh");
             dockerCommand.append(" || pause");
 
-            // Start new cmd window with docker attach
+            // Start new cmd window with docker exec
             ProcessBuilder processBuilder = new ProcessBuilder(
                     "cmd.exe", "/c", "start",
-                    "Docker Attach - " + containerName,
+                    "Docker Console - " + containerName,
                     "cmd.exe", "/k",
                     dockerCommand.toString()
             );
