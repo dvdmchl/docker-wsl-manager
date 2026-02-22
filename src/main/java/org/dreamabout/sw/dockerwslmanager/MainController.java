@@ -635,7 +635,9 @@ public class MainController {
         result.ifPresent(val -> {
             try {
                 int seconds = Integer.parseInt(val);
-                if (seconds < 1) seconds = 1;
+                if (seconds < 1) {
+                    seconds = 1;
+                }
                 settingsManager.setAutoRefreshInterval(seconds);
                 settingsManager.saveSettings();
                 setupAutoRefreshTimeline();

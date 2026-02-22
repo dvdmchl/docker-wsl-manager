@@ -88,12 +88,17 @@ public class VolumeLogic {
             boolean isRunning = "running".equalsIgnoreCase(container.getState());
             if (isRunning && container.getMounts() != null) {
                 for (ContainerMount mount : container.getMounts()) {
-                    if (mount.getName() != null && !mount.getName().isEmpty()) {
-                        String containerName = (container.getNames() != null && container.getNames().length > 0)
-                                ? container.getNames()[0] : container.getId();
-                        logger.info("Found running container volume: {} from container {}", mount.getName(), 
-                                containerName);
-                        volumeNames.add(mount.getName());
+                    if (mount != null) {
+                        String mName = mount.getName();
+                        if (mName != null && !mName.isEmpty()) {
+                            String[] names = container.getNames();
+                            String id = container.getId();
+                            String containerName = (names != null && names.length > 0)
+                                    ? names[0] : (id != null ? id : "unknown");
+                            logger.info("Found running container volume: {} from container {}", mName, 
+                                    containerName);
+                            volumeNames.add(mName);
+                        }
                     }
                 }
             }
