@@ -6,19 +6,27 @@ public class VolumeViewItem {
     private final String name;
     private final InspectVolumeResponse volume;
     private final boolean isGroup;
+    private final boolean unused;
 
     // Constructor for group
     public VolumeViewItem(String name) {
         this.name = name;
         this.volume = null;
         this.isGroup = true;
+        this.unused = false;
     }
 
     // Constructor for item
-    public VolumeViewItem(InspectVolumeResponse volume, String name) {
+    public VolumeViewItem(InspectVolumeResponse volume, String name, boolean unused) {
         this.name = name;
         this.volume = volume;
         this.isGroup = false;
+        this.unused = unused;
+    }
+
+    // Legacy constructor for backward compatibility if needed, though we should update calls
+    public VolumeViewItem(InspectVolumeResponse volume, String name) {
+        this(volume, name, false);
     }
 
     public String getName() {
@@ -31,5 +39,9 @@ public class VolumeViewItem {
 
     public boolean isGroup() {
         return isGroup;
+    }
+
+    public boolean isUnused() {
+        return unused;
     }
 }

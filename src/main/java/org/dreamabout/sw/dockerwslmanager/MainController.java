@@ -6,6 +6,7 @@ import com.github.dockerjava.api.model.ContainerPort;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.Image;
 import com.github.dockerjava.api.model.Network;
+import com.github.dockerjava.api.model.PruneType;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -24,6 +25,7 @@ import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
 import javafx.scene.control.TreeTableColumn;
+import javafx.scene.control.TreeTableRow;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
@@ -38,10 +40,13 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -126,6 +131,8 @@ public class MainController {
     private Button refreshVolumesButton;
     @FXML
     private Button removeVolumeButton;
+    @FXML
+    private Button pruneVolumesButton;
 
     // Networks tab
     @FXML
@@ -350,6 +357,20 @@ public class MainController {
                 }
                 return new SimpleStringProperty(item.getVolume().getMountpoint());
             });
+
+            volumesTable.setRowFactory(tv -> new TreeTableRow<VolumeViewItem>() {
+                @Override
+                protected void updateItem(VolumeViewItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (item == null || empty) {
+                        setStyle("");
+                    } else if (!item.isGroup() && item.isUnused()) {
+                        setStyle("-fx-text-fill: gray; -fx-opacity: 0.7;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            });
         }
 
         // Initialize networks table
@@ -397,6 +418,7 @@ public class MainController {
         
         shortcutManager.configureButton(refreshVolumesButton, "action.volume.refresh");
         shortcutManager.configureButton(removeVolumeButton, "action.volume.remove");
+        shortcutManager.configureButton(pruneVolumesButton, "action.volume.prune");
         
         shortcutManager.configureButton(refreshNetworksButton, "action.network.refresh");
         shortcutManager.configureButton(removeNetworkButton, "action.network.remove");
@@ -1500,6 +1522,30 @@ public class MainController {
     }
 
     @FXML
+    private void handlePruneVolumes() {
+        if (!checkConnection()) {
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Prune Unused Volumes");
+        confirm.setHeaderText("Prune Unused Volumes");
+        confirm.setContentText("Are you sure you want to remove ALL unused volumes? This cannot be undone.");
+
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                connectionManager.getDockerClient().pruneCmd(PruneType.VOLUMES).exec();
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Unused volumes pruned successfully.");
+                refreshVolumes();
+            } catch (Exception e) {
+                logger.error("Failed to prune volumes", e);
+                showAlert(Alert.AlertType.ERROR, "Error", "Failed to prune volumes: " + e.getMessage());
+            }
+        }
+    }
+
+    @FXML
     private void handleRefreshNetworks() {
         refreshNetworks();
     }
@@ -1729,6 +1775,19 @@ public class MainController {
                     .exec()
                     .getVolumes();
 
+            List<InspectVolumeResponse> danglingVolumes = connectionManager.getDockerClient()
+                    .listVolumesCmd()
+                    .withFilter("dangling", Arrays.asList("true"))
+                    .exec()
+                    .getVolumes();
+            
+            Set<String> danglingNames = new HashSet<>();
+            if (danglingVolumes != null) {
+                for (InspectVolumeResponse vol : danglingVolumes) {
+                    danglingNames.add(vol.getName());
+                }
+            }
+
             // Group volumes
             Map<String, List<InspectVolumeResponse>> grouped = new TreeMap<>();
             List<InspectVolumeResponse> ungrouped = new ArrayList<>();
@@ -1756,7 +1815,8 @@ public class MainController {
                 TreeItem<VolumeViewItem> groupItem = new TreeItem<>(new VolumeViewItem(entry.getKey()));
                 groupItem.setExpanded(true);
                 for (InspectVolumeResponse vol : entry.getValue()) {
-                    groupItem.getChildren().add(new TreeItem<>(new VolumeViewItem(vol, vol.getName())));
+                    boolean unused = danglingNames.contains(vol.getName());
+                    groupItem.getChildren().add(new TreeItem<>(new VolumeViewItem(vol, vol.getName(), unused)));
                 }
                 root.getChildren().add(groupItem);
             }
