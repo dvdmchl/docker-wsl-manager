@@ -9,6 +9,18 @@
 5. **User Experience First:** Every decision should prioritize user experience
 6. **Non-Interactive & CI-Aware:** Prefer non-interactive commands. Use `CI=true` for watch-mode tools (tests, linters) to ensure single execution.
 
+## Track Initialization Protocol
+
+### Feature: Track from GitHub Issue
+If the user provides a track description matching the pattern `issue #<number>` (e.g., "issue #32"):
+
+1.  **Fetch Issue Details:** Call `issue_read` with `method='get'`, `owner='dvdmchl'`, `repo='Docker-WSL-Manager'`, and `issue_number=<number>`. Use the *title* and *body* from the tool output.
+2.  **Set Track Context:**
+    *   **Track Description:** Use the *Issue Title*.
+    *   **Specification Input:** Use the *Issue Body* as the primary source for the interactive specification generation.
+3.  **Proceed:** Continue with the standard "Interactive Specification Generation" workflow, using the fetched data to pre-fill or guide the requirements gathering.
+
+
 ## Task Workflow
 
 All tasks follow a strict lifecycle:

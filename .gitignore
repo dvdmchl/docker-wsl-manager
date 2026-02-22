@@ -42,3 +42,6 @@ buildNumber.properties
 .classpath
 .project
 .settings/
+
+.gemini/
+gha-creds-*.json
