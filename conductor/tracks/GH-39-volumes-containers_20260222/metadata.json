@@ -1,8 +1,0 @@
-{
-  "track_id": "GH-39-volumes-containers_20260222",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-22T17:01:00Z",
-  "updated_at": "2026-02-22T17:01:00Z",
-  "description": "Show containers in volumes tab"
-}
