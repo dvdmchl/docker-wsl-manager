@@ -1,12 +1,19 @@
 package org.dreamabout.sw.dockerwslmanager.model;
 
 import com.github.dockerjava.api.command.InspectVolumeResponse;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
 
 public class VolumeViewItem {
     private final String name;
     private final InspectVolumeResponse volume;
     private final boolean isGroup;
     private final boolean unused;
+    private final LongProperty sizeBytes = new SimpleLongProperty(0);
+    private final StringProperty sizeString = new SimpleStringProperty("-");
 
     // Constructor for group
     public VolumeViewItem(String name) {
@@ -38,5 +45,26 @@ public class VolumeViewItem {
 
     public boolean isUnused() {
         return unused;
+    }
+
+    public long getSizeBytes() {
+        return sizeBytes.get();
+    }
+
+    public LongProperty sizeBytesProperty() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(long sizeBytes) {
+        this.sizeBytes.set(sizeBytes);
+        this.sizeString.set(FormatUtils.formatSize(sizeBytes));
+    }
+
+    public String getSizeString() {
+        return sizeString.get();
+    }
+
+    public StringProperty sizeStringProperty() {
+        return sizeString;
     }
 }

@@ -33,10 +33,12 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import org.dreamabout.sw.dockerwslmanager.logic.FormatUtils;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
+import org.dreamabout.sw.dockerwslmanager.service.VolumeUsageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +59,7 @@ public class MainController {
     private static final String UNGROUPED_LABEL = VolumeLogic.UNGROUPED_LABEL;
     
     private final VolumeLogic volumeLogic = new VolumeLogic();
+    private final VolumeUsageService volumeUsageService = new VolumeUsageService();
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
@@ -128,11 +131,15 @@ public class MainController {
     @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeNameColumn;
     @FXML
+    private TreeTableColumn<VolumeViewItem, String> volumeSizeColumn;
+    @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeDriverColumn;
     @FXML
     private TreeTableColumn<VolumeViewItem, String> volumeMountpointColumn;
     @FXML
     private Button refreshVolumesButton;
+    @FXML
+    private Button calculateVolumeSizesButton;
     @FXML
     private Button removeVolumeButton;
     @FXML
@@ -337,7 +344,7 @@ public class MainController {
                 if (item.isGroup()) {
                     return new SimpleStringProperty("");
                 }
-                return new SimpleStringProperty(formatSize(item.getImage().getSize()));
+                return new SimpleStringProperty(FormatUtils.formatSize(item.getImage().getSize()));
             });
         }
 
@@ -345,6 +352,15 @@ public class MainController {
         if (volumeNameColumn != null) {
             volumeNameColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getValue().getName()));
+
+            volumeSizeColumn.setCellValueFactory(data ->
+                    data.getValue().getValue().sizeStringProperty());
+
+            volumeSizeColumn.setComparator((s1, s2) -> {
+                long b1 = VolumeUsageService.parseDockerSize(s1);
+                long b2 = VolumeUsageService.parseDockerSize(s2);
+                return Long.compare(b1, b2);
+            });
             
             volumeDriverColumn.setCellValueFactory(data -> {
                 VolumeViewItem item = data.getValue().getValue();
@@ -1500,6 +1516,57 @@ public class MainController {
     }
 
     @FXML
+    private void handleCalculateVolumeSizes() {
+        if (!checkConnection()) {
+            return;
+        }
+
+        calculateVolumeSizesButton.setDisable(true);
+        new Thread(() -> {
+            try {
+                Map<String, Long> sizes = volumeUsageService.fetchVolumeSizes();
+                Platform.runLater(() -> {
+                    updateVolumeSizes(sizes);
+                    calculateVolumeSizesButton.setDisable(false);
+                });
+            } catch (Exception e) {
+                logger.error("Failed to calculate volume sizes", e);
+                Platform.runLater(() -> {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Failed to calculate volume sizes: " + e.getMessage());
+                    calculateVolumeSizesButton.setDisable(false);
+                });
+            }
+        }).start();
+    }
+
+    private void updateVolumeSizes(Map<String, Long> sizes) {
+        TreeItem<VolumeViewItem> root = volumesTable.getRoot();
+        if (root == null) {
+            logger.warn("Volumes table root is null, cannot update sizes");
+            return;
+        }
+
+        int updatedCount = 0;
+        for (TreeItem<VolumeViewItem> group : root.getChildren()) {
+            long groupTotal = 0;
+            for (TreeItem<VolumeViewItem> item : group.getChildren()) {
+                VolumeViewItem vol = item.getValue();
+                if (!vol.isGroup()) {
+                    Long size = sizes.get(vol.getName());
+                    if (size != null) {
+                        vol.setSizeBytes(size);
+                        groupTotal += size;
+                        updatedCount++;
+                    }
+                }
+            }
+            // Update group size as well
+            group.getValue().setSizeBytes(groupTotal);
+        }
+        logger.info("Updated sizes for {} volumes in UI", updatedCount);
+    }
+
+    @FXML
     private void handleRemoveVolume() {
         InspectVolumeResponse selected = getSelectedVolume();
         if (selected == null) {
@@ -1544,7 +1611,7 @@ public class MainController {
                         .exec();
                 
                 long reclaimed = response.getSpaceReclaimed() != null ? response.getSpaceReclaimed() : 0;
-                String msg = "Unused volumes pruned successfully.\nReclaimed space: " + formatSize(reclaimed);
+                String msg = "Unused volumes pruned successfully.\nReclaimed space: " + FormatUtils.formatSize(reclaimed);
                 showAlert(Alert.AlertType.INFORMATION, "Success", msg);
                 refreshVolumes();
             } catch (RuntimeException e) {
@@ -1936,23 +2003,6 @@ public class MainController {
             return null;
         }
         return selected.getValue().getVolume();
-    }
-
-    private String formatSize(Long size) {
-        if (size == null) {
-            return "0 B";
-        }
-
-        if (size < 1024) {
-            return size + " B";
-        }
-        if (size < 1024 * 1024) {
-            return String.format("%.2f KB", size / 1024.0);
-        }
-        if (size < 1024 * 1024 * 1024) {
-            return String.format("%.2f MB", size / (1024.0 * 1024));
-        }
-        return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
     }
 
     private void showAlert(Alert.AlertType type, String title, String content) {

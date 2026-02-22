@@ -35,4 +35,15 @@ public class VolumeViewItemTest {
         assertEquals(mockVolume, item.getVolume());
         assertTrue(item.isUnused());
     }
+
+    @Test
+    public void testSizeProperties() {
+        VolumeViewItem item = new VolumeViewItem("Group1");
+        assertEquals(0L, item.getSizeBytes());
+        assertEquals("-", item.getSizeString());
+
+        item.setSizeBytes(1024L);
+        assertEquals(1024L, item.getSizeBytes());
+        assertEquals("1.00 KB", item.getSizeString());
+    }
 }

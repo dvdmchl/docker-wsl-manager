@@ -17,6 +17,7 @@ To provide a seamless, native-feeling desktop experience for developers using Do
   - Remove unused images.
 - **Volume & Network Management:**
   - CRUD operations for Docker volumes and networks.
+  - Display volume disk usage (calculated manually to optimize performance).
 - **Connectivity:**
   - Auto-discovery of WSL 2 Docker instances.
   - Manual connection via IP/Port.

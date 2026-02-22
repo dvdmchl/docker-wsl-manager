@@ -103,6 +103,7 @@
                         <TreeTableView fx:id="volumesTable" showRoot="false">
                             <columns>
                                 <TreeTableColumn fx:id="volumeNameColumn" text="Name" prefWidth="300"/>
+                                <TreeTableColumn fx:id="volumeSizeColumn" text="Size" prefWidth="150"/>
                                 <TreeTableColumn fx:id="volumeDriverColumn" text="Driver" prefWidth="150"/>
                                 <TreeTableColumn fx:id="volumeMountpointColumn" text="Mountpoint" prefWidth="400"/>
                             </columns>
@@ -111,6 +112,7 @@
                     <bottom>
                         <HBox spacing="10" style="-fx-padding: 10;">
                             <Button fx:id="refreshVolumesButton" text="⟳ Refres_h" onAction="#handleRefreshVolumes"/>
+                            <Button fx:id="calculateVolumeSizesButton" text="📊 _Calculate Sizes" onAction="#handleCalculateVolumeSizes"/>
                             <Button fx:id="removeVolumeButton" text="🗑 Re_move" onAction="#handleRemoveVolume"/>
                             <Button fx:id="pruneVolumesButton" text="🧹 _Prune Unused" onAction="#handlePruneVolumes"/>
                         </HBox>
