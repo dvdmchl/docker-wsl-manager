@@ -3,6 +3,9 @@ package org.dreamabout.sw.dockerwslmanager.logic;
 import com.github.dockerjava.api.command.InspectVolumeResponse;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ContainerMount;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +17,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class VolumeLogic {
+    private static final Logger logger = LoggerFactory.getLogger(VolumeLogic.class);
 
     public static final String UNGROUPED_LABEL = "Ungrouped";
 
@@ -81,9 +85,14 @@ public class VolumeLogic {
 
         Set<String> volumeNames = new HashSet<>();
         for (Container container : containers) {
-            if ("running".equalsIgnoreCase(container.getState()) && container.getMounts() != null) {
+            boolean isRunning = "running".equalsIgnoreCase(container.getState());
+            if (isRunning && container.getMounts() != null) {
                 for (ContainerMount mount : container.getMounts()) {
                     if (mount.getName() != null && !mount.getName().isEmpty()) {
+                        String containerName = (container.getNames() != null && container.getNames().length > 0)
+                                ? container.getNames()[0] : container.getId();
+                        logger.info("Found running container volume: {} from container {}", mount.getName(), 
+                                containerName);
                         volumeNames.add(mount.getName());
                     }
                 }

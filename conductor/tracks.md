@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [~] **Track: List volumes of running conainers using green color.**
+- [x] **Track: List volumes of running conainers using green color.**
   *Link: [./tracks/GH-33-volume-color_20260222/](./tracks/GH-33-volume-color_20260222/)*

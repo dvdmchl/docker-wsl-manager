@@ -9,16 +9,16 @@
 - [x] Task: Conductor - User Manual Verification 'Logic & Model Updates' (Protocol in workflow.md)
 
 ## Phase 2: UI Integration
-- [ ] Task: Update `MainController.refreshVolumes()` to populate the "in use" status.
-    - [ ] Fetch the latest container states.
-    - [ ] Apply the `inUseByRunningContainer` property to each `VolumeViewItem`.
-- [ ] Task: Update `volumesTable` row factory.
-    - [ ] Modify the `updateItem` method in the row factory to apply `-fx-text-fill: green;` when the volume is in use by a running container.
-    - [ ] Ensure precedence logic: check `inUseByRunningContainer` before `unused`.
-- [ ] Task: Conductor - User Manual Verification 'UI Integration' (Protocol in workflow.md)
+- [x] Task: Update `MainController.refreshVolumes()` to populate the "in use" status.
+    - [x] Fetch the latest container states.
+    - [x] Apply the `inUseByRunningContainer` property to each `VolumeViewItem`.
+- [x] Task: Update `volumesTable` row factory.
+    - [x] Modify the `updateItem` method in the row factory to apply `-fx-text-fill: green;` when the volume is in use by a running container.
+    - [x] Ensure precedence logic: check `inUseByRunningContainer` before `unused`.
+- [x] Task: Conductor - User Manual Verification 'UI Integration' (Protocol in workflow.md)
 
 ## Phase 3: Final Verification
-- [ ] Task: Verify the dynamic update behavior.
-    - [ ] Start a container and refresh volumes -> text turns green.
-    - [ ] Stop the container and refresh volumes -> text returns to normal/grey.
-- [ ] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)
+- [x] Task: Verify the dynamic update behavior.
+    - [x] Start a container and refresh volumes -> text turns green.
+    - [x] Stop the container and refresh volumes -> text returns to normal/grey.
+- [x] Task: Conductor - User Manual Verification 'Final Verification' (Protocol in workflow.md)

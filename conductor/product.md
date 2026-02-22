@@ -20,6 +20,7 @@ To provide a seamless, native-feeling desktop experience for developers using Do
   - CRUD operations for Docker volumes and networks.
   - Display volume disk usage (calculated manually to optimize performance).
   - View containers using specific volumes with direct navigation support.
+  - Visual highlighting of volumes used by running containers (green text).
 - **Connectivity:**
   - Auto-discovery of WSL 2 Docker instances.
   - Manual connection via IP/Port.

@@ -358,8 +358,34 @@ public class MainController {
             volumeNameColumn.setCellValueFactory(data ->
                     new SimpleStringProperty(data.getValue().getValue().getName()));
 
+            volumeNameColumn.setCellFactory(column -> new TreeTableCell<VolumeViewItem, String>() {
+                @Override
+                protected void updateItem(String name, boolean empty) {
+                    super.updateItem(name, empty);
+                    if (empty || name == null) {
+                        setText(null);
+                        setStyle("");
+                    } else {
+                        setText(name);
+                        VolumeViewItem item = getTreeTableRow().getItem();
+                        if (item != null && !item.isGroup()) {
+                            if (item.isInUseByRunningContainer()) {
+                                setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+                            } else if (item.isUnused()) {
+                                setStyle("-fx-text-fill: gray;");
+                            } else {
+                                setStyle("");
+                            }
+                        } else {
+                            setStyle("");
+                        }
+                    }
+                }
+            });
+
             volumeContainersColumn.setCellValueFactory(data ->
-                    javafx.beans.binding.Bindings.createObjectBinding(() -> data.getValue().getValue().getContainerNames()));
+                    javafx.beans.binding.Bindings.createObjectBinding(() -> 
+                            data.getValue().getValue().getContainerNames()));
 
             volumeContainersColumn.setCellFactory(col -> new javafx.scene.control.TreeTableCell<>() {
                 private final FlowPane flowPane = new FlowPane();
@@ -443,6 +469,8 @@ public class MainController {
                     super.updateItem(item, empty);
                     if (item == null || empty) {
                         setStyle("");
+                    } else if (!item.isGroup() && item.isInUseByRunningContainer()) {
+                        setStyle("-fx-text-fill: green;");
                     } else if (!item.isGroup() && item.isUnused()) {
                         setStyle("-fx-text-fill: gray; -fx-opacity: 0.7;");
                     } else {
@@ -1955,6 +1983,8 @@ public class MainController {
                     .exec();
 
             Map<String, List<String>> volumeToContainers = volumeLogic.mapVolumesToContainers(containers);
+            Set<String> runningVolumeNames = volumeLogic.getRunningContainerVolumeNames(containers);
+            logger.info("Running container volume names: {}", runningVolumeNames);
             Set<String> danglingNames = getDanglingVolumeNames();
             Map<String, List<InspectVolumeResponse>> grouped = volumeLogic.groupVolumes(volumes);
 
@@ -1967,10 +1997,14 @@ public class MainController {
                 for (InspectVolumeResponse vol : entry.getValue()) {
                     boolean unused = danglingNames.contains(vol.getName());
                     VolumeViewItem item = new VolumeViewItem(vol, vol.getName(), unused);
+                    
                     List<String> containerNames = volumeToContainers.get(vol.getName());
                     if (containerNames != null) {
                         item.getContainerNames().setAll(containerNames);
                     }
+                    
+                    item.setInUseByRunningContainer(runningVolumeNames.contains(vol.getName()));
+                    
                     groupItem.getChildren().add(new TreeItem<>(item));
                 }
                 root.getChildren().add(groupItem);
