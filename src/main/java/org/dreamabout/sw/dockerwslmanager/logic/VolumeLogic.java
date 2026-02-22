@@ -6,6 +6,7 @@ import com.github.dockerjava.api.model.ContainerMount;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,6 +72,24 @@ public class VolumeLogic {
         }
 
         return volumeToContainers;
+    }
+
+    public Set<String> getRunningContainerVolumeNames(List<Container> containers) {
+        if (containers == null) {
+            return Collections.emptySet();
+        }
+
+        Set<String> volumeNames = new HashSet<>();
+        for (Container container : containers) {
+            if ("running".equalsIgnoreCase(container.getState()) && container.getMounts() != null) {
+                for (ContainerMount mount : container.getMounts()) {
+                    if (mount.getName() != null && !mount.getName().isEmpty()) {
+                        volumeNames.add(mount.getName());
+                    }
+                }
+            }
+        }
+        return volumeNames;
     }
 
     private String extractPrimaryName(Container container) {

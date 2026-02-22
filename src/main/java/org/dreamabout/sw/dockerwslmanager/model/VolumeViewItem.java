@@ -1,7 +1,9 @@
 package org.dreamabout.sw.dockerwslmanager.model;
 
 import com.github.dockerjava.api.command.InspectVolumeResponse;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -17,6 +19,7 @@ public class VolumeViewItem {
     private final LongProperty sizeBytes = new SimpleLongProperty(0);
     private final StringProperty sizeString = new SimpleStringProperty("-");
     private final ObservableList<String> containerNames = FXCollections.observableArrayList();
+    private final BooleanProperty inUseByRunningContainer = new SimpleBooleanProperty(false);
 
     // Constructor for group
     public VolumeViewItem(String name) {
@@ -73,5 +76,17 @@ public class VolumeViewItem {
 
     public ObservableList<String> getContainerNames() {
         return containerNames;
+    }
+
+    public boolean isInUseByRunningContainer() {
+        return inUseByRunningContainer.get();
+    }
+
+    public BooleanProperty inUseByRunningContainerProperty() {
+        return inUseByRunningContainer;
+    }
+
+    public void setInUseByRunningContainer(boolean inUseByRunningContainer) {
+        this.inUseByRunningContainer.set(inUseByRunningContainer);
     }
 }

@@ -102,4 +102,27 @@ class VolumeLogicTest {
         assertEquals(1, mapping.get("vol2").size());
         assertTrue(mapping.get("vol2").contains("container2"));
     }
+
+    @Test
+    void testGetRunningContainerVolumeNames() {
+        ContainerMount mount1 = mock(ContainerMount.class);
+        when(mount1.getName()).thenReturn("vol1");
+
+        Container c1 = mock(Container.class);
+        when(c1.getState()).thenReturn("running");
+        when(c1.getMounts()).thenReturn(Collections.singletonList(mount1));
+
+        ContainerMount mount2 = mock(ContainerMount.class);
+        when(mount2.getName()).thenReturn("vol2");
+
+        Container c2 = mock(Container.class);
+        when(c2.getState()).thenReturn("exited");
+        when(c2.getMounts()).thenReturn(Collections.singletonList(mount2));
+
+        Set<String> names = logic.getRunningContainerVolumeNames(Arrays.asList(c1, c2));
+
+        assertEquals(1, names.size());
+        assertTrue(names.contains("vol1"));
+        assertFalse(names.contains("vol2"));
+    }
 }
