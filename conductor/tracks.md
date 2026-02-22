@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [~] **Track: Show containers in volumes tab**
+- [x] **Track: Show containers in volumes tab**
   *Link: [./tracks/GH-39-volumes-containers_20260222/](./tracks/GH-39-volumes-containers_20260222/)*
