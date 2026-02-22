@@ -1,14 +1,14 @@
 # Implementation Plan - Track: GH-29-open-volumes
 
 ## Phase 1: Foundation & Path Logic
-- [ ] Task: Update `SettingsManager` to support the `wsl.distro` configuration.
-    - [ ] Add `getWslDistro()` and `setWslDistro(String)` methods to `SettingsManager`.
-    - [ ] Update the General Settings dialog in `MainController` to include an input for the WSL distribution name.
-- [ ] Task: Implement `VolumePathResolver` in `org.dreamabout.sw.dockerwslmanager.logic`.
-    - [ ] Add logic to construct Windows network paths for named volumes: `\wsl.localhost\<distro>\var\lib\docker\volumes\<name>\_data`.
-    - [ ] Add logic to resolve bind mount paths, handling both Windows host paths and Linux paths.
-- [ ] Task: Write unit tests for `VolumePathResolver`.
-- [ ] Task: Conductor - User Manual Verification 'Foundation & Path Logic' (Protocol in workflow.md)
+- [x] Task: Update `SettingsManager` to support the `wsl.distro` configuration.
+    - [x] Add `getWslDistro()` and `setWslDistro(String)` methods to `SettingsManager`.
+    - [x] Update the General Settings dialog in `MainController` to include an input for the WSL distribution name.
+- [x] Task: Implement `VolumePathResolver` in `org.dreamabout.sw.dockerwslmanager.logic`.
+    - [x] Add logic to construct Windows network paths for named volumes: `\\wsl.localhost\<distro>\var\lib\docker\volumes\<name>\_data`.
+    - [x] Add logic to resolve bind mount paths, handling both Windows host paths and Linux paths.
+- [x] Task: Write unit tests for `VolumePathResolver`.
+- [x] Task: Conductor - User Manual Verification 'Foundation & Path Logic' (Protocol in workflow.md)
 
 ## Phase 2: Volumes Tab Integration
 - [ ] Task: Update `main.fxml` to add the "Open Volume" button to the Volumes tab toolbar.

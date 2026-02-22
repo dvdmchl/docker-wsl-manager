@@ -22,6 +22,7 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
@@ -626,23 +627,51 @@ public class MainController {
 
     @FXML
     private void handleGeneralSettingsAction() {
-        TextInputDialog dialog = new TextInputDialog(String.valueOf(settingsManager.getAutoRefreshInterval()));
+        javafx.scene.control.Dialog<javafx.util.Pair<String, String>> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle("General Settings");
-        dialog.setHeaderText("Configure Auto-refresh");
-        dialog.setContentText("Interval (seconds):");
+        dialog.setHeaderText("Configure Application Settings");
 
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(val -> {
+        javafx.scene.control.ButtonType saveButtonType = new javafx.scene.control.ButtonType("Save", 
+                javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, javafx.scene.control.ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
+
+        TextField intervalField = new TextField(String.valueOf(settingsManager.getAutoRefreshInterval()));
+        TextField distroField = new TextField(settingsManager.getWslDistro());
+
+        grid.add(new Label("Auto-refresh Interval (seconds):"), 0, 0);
+        grid.add(intervalField, 1, 0);
+        grid.add(new Label("WSL Distro (for volumes):"), 0, 1);
+        grid.add(distroField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Platform.runLater(intervalField::requestFocus);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                return new javafx.util.Pair<>(intervalField.getText(), distroField.getText());
+            }
+            return null;
+        });
+
+        Optional<javafx.util.Pair<String, String>> result = dialog.showAndWait();
+        result.ifPresent(settings -> {
             try {
-                int seconds = Integer.parseInt(val);
+                int seconds = Integer.parseInt(settings.getKey());
                 if (seconds < 1) {
                     seconds = 1;
                 }
                 settingsManager.setAutoRefreshInterval(seconds);
+                settingsManager.setWslDistro(settings.getValue());
                 settingsManager.saveSettings();
                 setupAutoRefreshTimeline();
             } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number.");
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number for interval.");
             } catch (Exception e) {
                 logger.error("Failed to save settings", e);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to save settings: " + e.getMessage());

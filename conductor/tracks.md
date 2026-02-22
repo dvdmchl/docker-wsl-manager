@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [ ] **Track: Allow to open volume and browse files**
+- [~] **Track: Allow to open volume and browse files**
   *Link: [./tracks/GH-29-open-volumes_20260222/](./tracks/GH-29-open-volumes_20260222/)*

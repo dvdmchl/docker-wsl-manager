@@ -55,6 +55,14 @@ public final class SettingsManager {
         settings.setProperty("auto.refresh.interval", String.valueOf(seconds));
     }
 
+    public String getWslDistro() {
+        return settings.getProperty("wsl.distro", "docker-desktop-data");
+    }
+
+    public void setWslDistro(String distro) {
+        settings.setProperty("wsl.distro", distro);
+    }
+
     public void saveSettings() throws IOException {
         File userConfig = new File(CONFIG_FILE_PATH);
         File parent = userConfig.getParentFile();
