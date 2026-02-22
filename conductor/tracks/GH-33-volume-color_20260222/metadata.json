@@ -1,8 +1,0 @@
-{
-  "track_id": "GH-33-volume-color_20260222",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-22T17:39:00Z",
-  "updated_at": "2026-02-22T17:39:00Z",
-  "description": "List volumes of running conainers using green color."
-}
