@@ -1,8 +1,0 @@
-{
-  "track_id": "container-config_20260222",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-02-22T18:53:00Z",
-  "updated_at": "2026-02-22T18:53:00Z",
-  "description": "Allow to show container configuration in details tab"
-}
