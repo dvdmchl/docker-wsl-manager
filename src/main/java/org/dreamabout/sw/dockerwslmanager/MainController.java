@@ -991,7 +991,6 @@ public class MainController {
 
         try {
             connectionManager.getDockerClient().startContainerCmd(selected.getId()).exec();
-            showAlert(Alert.AlertType.INFORMATION, "Success", "Container started successfully.");
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to start container", e);
@@ -1019,8 +1018,7 @@ public class MainController {
         refreshContainers();
 
         if (failureCount == 0) {
-            showAlert(Alert.AlertType.INFORMATION, "Success", 
-                    "All " + successCount + " containers started successfully.");
+            // All containers started successfully, no popup needed
         } else if (successCount == 0) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to start all containers:" + errors);
@@ -1064,7 +1062,6 @@ public class MainController {
 
         try {
             connectionManager.getDockerClient().stopContainerCmd(selected.getId()).exec();
-            showAlert(Alert.AlertType.INFORMATION, "Success", "Container stopped successfully.");
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to stop container", e);
@@ -1092,8 +1089,7 @@ public class MainController {
         refreshContainers();
 
         if (failureCount == 0) {
-            showAlert(Alert.AlertType.INFORMATION, "Success", 
-                    "All " + successCount + " containers stopped successfully.");
+            // All containers stopped successfully, no popup needed
         } else if (successCount == 0) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to stop all containers:" + errors);
@@ -1137,7 +1133,6 @@ public class MainController {
 
         try {
             connectionManager.getDockerClient().restartContainerCmd(selected.getId()).exec();
-            showAlert(Alert.AlertType.INFORMATION, "Success", "Container restarted successfully.");
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to restart container", e);
@@ -1165,8 +1160,7 @@ public class MainController {
         refreshContainers();
 
         if (failureCount == 0) {
-            showAlert(Alert.AlertType.INFORMATION, "Success", 
-                    "All " + successCount + " containers restarted successfully.");
+            // All containers restarted successfully, no popup needed
         } else if (successCount == 0) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to restart all containers:" + errors);
@@ -1217,7 +1211,6 @@ public class MainController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 connectionManager.getDockerClient().removeContainerCmd(selected.getId()).withForce(true).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Container removed successfully.");
                 refreshContainers();
             } catch (Exception e) {
                 logger.error("Failed to remove container", e);
@@ -1246,8 +1239,7 @@ public class MainController {
         refreshContainers();
 
         if (failureCount == 0) {
-            showAlert(Alert.AlertType.INFORMATION, "Success", 
-                    "All " + successCount + " containers removed successfully.");
+            // All containers removed successfully, no popup needed
         } else if (successCount == 0) {
             showAlert(Alert.AlertType.ERROR, "Error", 
                     "Failed to remove all containers:" + errors);
@@ -1485,7 +1477,6 @@ public class MainController {
         startButton.setOnAction(e -> {
             try {
                 connectionManager.getDockerClient().startContainerCmd(containerId).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Container started successfully.");
                 refreshContainers();
                 
                 // Refresh local state
@@ -1513,7 +1504,6 @@ public class MainController {
         stopButton.setOnAction(e -> {
             try {
                 connectionManager.getDockerClient().stopContainerCmd(containerId).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Container stopped successfully.");
                 refreshContainers();
                 stopLogStream(containerId); // Stop logs when container stops
                 
@@ -1538,7 +1528,6 @@ public class MainController {
         restartButton.setOnAction(e -> {
             try {
                 connectionManager.getDockerClient().restartContainerCmd(containerId).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Container restarted successfully.");
                 refreshContainers();
                 
                 // Refresh local state

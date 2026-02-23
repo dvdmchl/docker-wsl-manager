@@ -8,7 +8,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [d40bd4e]
 
 ## Phase 2: Container Lifecycle (Start/Stop/Restart/Remove)
-- [ ] Task: Remove Container Operation Success Popups
+- [~] Task: Remove Container Operation Success Popups
     - [ ] Identify handlers for `start`, `stop`, `restart`, and `remove`.
     - [ ] Remove `Alert` calls for successful operations.
     - [ ] Ensure `try-catch` blocks still catch exceptions and show error alerts.
