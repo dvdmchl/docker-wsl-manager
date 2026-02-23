@@ -43,5 +43,4 @@ buildNumber.properties
 .project
 .settings/
 
-.gemini/
 gha-creds-*.json
