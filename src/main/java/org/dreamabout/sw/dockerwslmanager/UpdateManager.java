@@ -43,8 +43,7 @@ public class UpdateManager {
     }
 
     public Optional<ReleaseInfo> checkForUpdates() {
-        try {
-            HttpClient client = HttpClient.newHttpClient();
+        try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/releases/latest"))
                     .header("Accept", "application/vnd.github.v3+json")

@@ -3,12 +3,12 @@ package org.dreamabout.sw.dockerwslmanager.service;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class VolumeUsageServiceTest {
+class VolumeUsageServiceTest {
 
     private final VolumeUsageService service = new VolumeUsageService();
 
     @Test
-    public void testParseDockerSize() {
+    void testParseDockerSize() {
         assertEquals(0L, service.parseDockerSize(null));
         assertEquals(0L, service.parseDockerSize(""));
         assertEquals(0L, service.parseDockerSize("N/A"));

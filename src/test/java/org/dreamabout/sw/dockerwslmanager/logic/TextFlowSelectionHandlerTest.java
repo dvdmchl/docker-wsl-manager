@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TextFlowSelectionHandlerTest {
+class TextFlowSelectionHandlerTest {
 
     @BeforeAll
     public static void initJFX() throws InterruptedException {
@@ -24,7 +24,7 @@ public class TextFlowSelectionHandlerTest {
     }
 
     @Test
-    public void testGetSelectedText() {
+    void testGetSelectedText() {
         TextFlow textFlow = new TextFlow();
         Text t1 = new Text("Hello ");
         Text t2 = new Text("World");
@@ -50,7 +50,7 @@ public class TextFlowSelectionHandlerTest {
     }
 
     @Test
-    public void testSelectAll() {
+    void testSelectAll() {
         TextFlow textFlow = new TextFlow();
         Text t1 = new Text("Part 1 ");
         Text t2 = new Text("Part 2");

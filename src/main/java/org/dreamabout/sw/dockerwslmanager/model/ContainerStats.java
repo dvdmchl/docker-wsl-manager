@@ -13,6 +13,7 @@ public class ContainerStats {
     private final long diskReadBytes;
     private final long diskWriteBytes;
 
+    @SuppressWarnings("java:S107")
     public ContainerStats(String containerId, double cpuPercentage, long memoryUsage, long memoryLimit,
                           long networkReadBytes, long networkWriteBytes, long diskReadBytes, long diskWriteBytes) {
         this.containerId = containerId;

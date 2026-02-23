@@ -12,12 +12,14 @@ import java.util.Properties;
 
 public final class ShortcutManager {
     private static final Logger logger = LoggerFactory.getLogger(ShortcutManager.class);
+    private static final String SHORTCUTS_FILE = "/shortcuts.properties";
+    private static final String ACTIVE_KEY_COMB = "activeKeyComb";
     private final Properties shortcuts = new Properties();
     private static final String CONFIG_FILE_PATH = System.getProperty("user.home") + "/.docker-wsl-manager/shortcuts.properties";
 
     public ShortcutManager() {
         // Load default first
-        try (InputStream input = getClass().getResourceAsStream("/shortcuts.properties")) {
+        try (InputStream input = getClass().getResourceAsStream(SHORTCUTS_FILE)) {
             if (input != null) {
                 shortcuts.load(input);
             } else {
@@ -49,7 +51,7 @@ public final class ShortcutManager {
         }
         
         // Fallback to default resource content
-        try (InputStream input = getClass().getResourceAsStream("/shortcuts.properties")) {
+        try (InputStream input = getClass().getResourceAsStream(SHORTCUTS_FILE)) {
             if (input != null) {
                 return new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             }
@@ -73,7 +75,7 @@ public final class ShortcutManager {
             // Wait, if I clear, I lose defaults that were NOT in user config?
             // Correct behavior: Load defaults, THEN load user config.
             // So re-run initialization logic.
-            try (InputStream defaultInput = getClass().getResourceAsStream("/shortcuts.properties")) {
+            try (InputStream defaultInput = getClass().getResourceAsStream(SHORTCUTS_FILE)) {
                 if (defaultInput != null) {
                     shortcuts.load(defaultInput);
                 }
@@ -113,26 +115,26 @@ public final class ShortcutManager {
 
         // 2. Accelerator Handling
         // Remove old accelerator if exists from current scene
-        KeyCombination oldKc = (KeyCombination) button.getProperties().get("activeKeyComb");
+        KeyCombination oldKc = (KeyCombination) button.getProperties().get(ACTIVE_KEY_COMB);
         if (oldKc != null && button.getScene() != null) {
             button.getScene().getAccelerators().remove(oldKc);
         }
         
         // Save new key
-        button.getProperties().put("activeKeyComb", newKc);
+        button.getProperties().put(ACTIVE_KEY_COMB, newKc);
 
         // Register new accelerator
         // Attach listener only once to handle scene changes
         if (button.getProperties().get("listenerAttached") == null) {
              button.sceneProperty().addListener((obs, oldScene, newScene) -> {
                  if (oldScene != null) {
-                     KeyCombination kc = (KeyCombination) button.getProperties().get("activeKeyComb");
+                     KeyCombination kc = (KeyCombination) button.getProperties().get(ACTIVE_KEY_COMB);
                      if (kc != null) {
                          oldScene.getAccelerators().remove(kc);
                      }
                  }
                  if (newScene != null) {
-                     KeyCombination kc = (KeyCombination) button.getProperties().get("activeKeyComb");
+                     KeyCombination kc = (KeyCombination) button.getProperties().get(ACTIVE_KEY_COMB);
                      if (kc != null) {
                          registerAccelerator(newScene, kc, button);
                      }

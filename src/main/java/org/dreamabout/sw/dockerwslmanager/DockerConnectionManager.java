@@ -21,6 +21,7 @@ public class DockerConnectionManager {
     private String currentConnectionString;
 
     public DockerConnectionManager() {
+        // Default constructor
     }
 
     /**

@@ -2,7 +2,8 @@ package org.dreamabout.sw.dockerwslmanager.logic;
 
 import java.util.Locale;
 
-public class FormatUtils {
+public final class FormatUtils {
+    private FormatUtils() {}
 
     /**
      * Formats a size in bytes into a human-readable string.

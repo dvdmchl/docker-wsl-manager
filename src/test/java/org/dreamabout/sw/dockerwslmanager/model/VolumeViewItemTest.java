@@ -5,10 +5,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
-public class VolumeViewItemTest {
+class VolumeViewItemTest {
 
     @Test
-    public void testGroupConstructor() {
+    void testGroupConstructor() {
         VolumeViewItem item = new VolumeViewItem("Group1");
         assertTrue(item.isGroup());
         assertEquals("Group1", item.getName());
@@ -17,7 +17,7 @@ public class VolumeViewItemTest {
     }
 
     @Test
-    public void testItemConstructor() {
+    void testItemConstructor() {
         InspectVolumeResponse mockVolume = mock(InspectVolumeResponse.class);
         VolumeViewItem item = new VolumeViewItem(mockVolume, "Vol1", false);
         assertFalse(item.isGroup());
@@ -27,7 +27,7 @@ public class VolumeViewItemTest {
     }
 
     @Test
-    public void testItemConstructorWithUnused() {
+    void testItemConstructorWithUnused() {
         InspectVolumeResponse mockVolume = mock(InspectVolumeResponse.class);
         VolumeViewItem item = new VolumeViewItem(mockVolume, "Vol1", true);
         assertFalse(item.isGroup());
@@ -37,7 +37,7 @@ public class VolumeViewItemTest {
     }
 
     @Test
-    public void testSizeProperties() {
+    void testSizeProperties() {
         VolumeViewItem item = new VolumeViewItem("Group1");
         assertEquals(0L, item.getSizeBytes());
         assertEquals("-", item.getSizeString());

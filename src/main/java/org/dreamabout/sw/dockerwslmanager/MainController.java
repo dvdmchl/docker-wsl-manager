@@ -71,6 +71,21 @@ import java.util.stream.Collectors;
 public class MainController {
     private static final Logger logger = LoggerFactory.getLogger(MainController.class);
     private static final String UNGROUPED_LABEL = VolumeLogic.UNGROUPED_LABEL;
+    private static final String CONFIRM_REMOVAL_TITLE = "Confirm Removal";
+    private static final String FONT_WEIGHT_BOLD_STYLE = "-fx-font-weight: bold;";
+    private static final String CONFIG_PREFIX = "config-";
+    private static final String ANY_IP = "0.0.0.0";
+    private static final String NO_SELECTION_TITLE = "No Selection";
+    private static final String CONTAINERS_FAILED_MSG = " containers failed:";
+    private static final String CONTAINERS_IN_GROUP_MSG = " containers in group '";
+    private static final String ERROR_TITLE = "Error";
+    private static final String NO_CONTAINERS_TITLE = "No Containers";
+    private static final String NO_CONTAINERS_MSG = "The selected group has no containers.";
+    private static final String PARTIAL_SUCCESS_TITLE = "Partial Success";
+    private static final String STATE_RUNNING = "running";
+    private static final String COLOR_GREEN = "-fx-text-fill: green;";
+    private static final String COLOR_RED = "-fx-text-fill: red;";
+    private static final String FONT_COURIER_NEW = "Courier New";
     
     private final VolumeLogic volumeLogic = new VolumeLogic();
     private final VolumeUsageService volumeUsageService = new VolumeUsageService();
@@ -280,7 +295,7 @@ public class MainController {
                         if (treeItem != null && !treeItem.getValue().isGroup()) {
                             Container container = treeItem.getValue().getContainer();
                             boolean isRunning = container.getState() != null 
-                                    && container.getState().equalsIgnoreCase("running");
+                                    && container.getState().equalsIgnoreCase(STATE_RUNNING);
                             
                             if (isRunning && container.getPorts() != null && container.getPorts().length > 0) {
                                 // Create a FlowPane to hold hyperlinks
@@ -337,10 +352,10 @@ public class MainController {
                         // or stopped/exited (typically starts with "Exited" or "Created")
                         String lowerStatus = status.toLowerCase(java.util.Locale.ROOT);
                         if (lowerStatus.startsWith("up")) {
-                            setStyle("-fx-text-fill: green;");
+                            setStyle(COLOR_GREEN);
                         } else if (lowerStatus.startsWith("exited")
                                    || lowerStatus.startsWith("created")) {
-                            setStyle("-fx-text-fill: red;");
+                            setStyle(COLOR_RED);
                         } else {
                             setStyle("");
                         }
@@ -424,12 +439,7 @@ public class MainController {
                             data.getValue().getValue().getContainerNames()));
 
             volumeContainersColumn.setCellFactory(col -> new javafx.scene.control.TreeTableCell<>() {
-                private final FlowPane flowPane = new FlowPane();
-
-                {
-                    flowPane.setHgap(5);
-                    flowPane.setVgap(2);
-                }
+                private FlowPane flowPane;
 
                 @Override
                 protected void updateItem(javafx.collections.ObservableList<String> containerNames, boolean empty) {
@@ -437,6 +447,11 @@ public class MainController {
                     if (empty || containerNames == null || containerNames.isEmpty()) {
                         setGraphic(null);
                     } else {
+                        if (flowPane == null) {
+                            flowPane = new FlowPane();
+                            flowPane.setHgap(5);
+                            flowPane.setVgap(2);
+                        }
                         flowPane.getChildren().clear();
                         for (int i = 0; i < containerNames.size(); i++) {
                             String name = containerNames.get(i);
@@ -509,31 +524,31 @@ public class MainController {
                 }
             });
 
-            volumesTable.setRowFactory(tv -> new TreeTableRow<VolumeViewItem>() {
-                {
-                    setOnMouseClicked(event -> {
-                        if (event.getClickCount() == 2 && !isEmpty()) {
-                            VolumeViewItem item = getItem();
-                            if (item != null && !item.isGroup()) {
-                                handleOpenVolumeAction();
-                            }
+            volumesTable.setRowFactory(tv -> {
+                TreeTableRow<VolumeViewItem> row = new TreeTableRow<>() {
+                    @Override
+                    protected void updateItem(VolumeViewItem item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (item == null || empty) {
+                            setStyle("");
+                        } else if (!item.isGroup() && item.isInUseByRunningContainer()) {
+                            setStyle(COLOR_GREEN);
+                        } else if (!item.isGroup() && item.isUnused()) {
+                            setStyle("-fx-text-fill: gray; -fx-opacity: 0.7;");
+                        } else {
+                            setStyle("");
                         }
-                    });
-                }
-
-                @Override
-                protected void updateItem(VolumeViewItem item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (item == null || empty) {
-                        setStyle("");
-                    } else if (!item.isGroup() && item.isInUseByRunningContainer()) {
-                        setStyle("-fx-text-fill: green;");
-                    } else if (!item.isGroup() && item.isUnused()) {
-                        setStyle("-fx-text-fill: gray; -fx-opacity: 0.7;");
-                    } else {
-                        setStyle("");
                     }
-                }
+                };
+                row.setOnMouseClicked(event -> {
+                    if (event.getClickCount() == 2 && !row.isEmpty()) {
+                        VolumeViewItem item = row.getItem();
+                        if (item != null && !item.isGroup()) {
+                            handleOpenVolumeAction();
+                        }
+                    }
+                });
+                return row;
             });
         }
 
@@ -566,13 +581,13 @@ public class MainController {
         mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
             if (oldTab != null && oldTab.getUserData() instanceof String) {
                 String containerId = (String) oldTab.getUserData();
-                if (!containerId.startsWith("config-")) {
+                if (!containerId.startsWith(CONFIG_PREFIX)) {
                     stopStatsStream(containerId);
                 }
             }
             if (newTab != null && newTab.getUserData() instanceof String) {
                 String containerId = (String) newTab.getUserData();
-                if (!containerId.startsWith("config-")) {
+                if (!containerId.startsWith(CONFIG_PREFIX)) {
                     restartStatsForTab(newTab);
                 }
             }
@@ -774,7 +789,7 @@ public class MainController {
                 showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter valid numbers for intervals.");
             } catch (Exception e) {
                 logger.error("Failed to save settings", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save settings: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to save settings: " + e.getMessage());
             }
         });
     }
@@ -817,7 +832,7 @@ public class MainController {
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Keybinds saved and applied.");
             } catch (Exception e) {
                 logger.error("Failed to save keybinds", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to save keybinds: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to save keybinds: " + e.getMessage());
             }
         });
     }
@@ -875,7 +890,7 @@ public class MainController {
         javafx.scene.control.Tab currentTab = mainTabPane.getSelectionModel().getSelectedItem();
         if (currentTab != null && currentTab.getUserData() instanceof String) {
             String containerId = (String) currentTab.getUserData();
-            if (!containerId.startsWith("config-")) {
+            if (!containerId.startsWith(CONFIG_PREFIX)) {
                 restartStatsForTab(currentTab);
             }
         }
@@ -964,7 +979,7 @@ public class MainController {
         if (isGroupSelected()) {
             List<Container> containers = getSelectedContainerGroup();
             if (containers.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                showAlert(Alert.AlertType.WARNING, NO_CONTAINERS_TITLE, NO_CONTAINERS_MSG);
                 return;
             }
 
@@ -973,7 +988,7 @@ public class MainController {
             confirm.setTitle("Confirm Start");
             confirm.setHeaderText("Start Container Group");
             confirm.setContentText("Are you sure you want to start all " + containers.size() 
-                    + " containers in group '" + groupName + "'?");
+                    + CONTAINERS_IN_GROUP_MSG + groupName + "'?");
 
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -985,7 +1000,7 @@ public class MainController {
         // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to start.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to start.");
             return;
         }
 
@@ -994,7 +1009,7 @@ public class MainController {
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to start container", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to start container: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to start container: " + e.getMessage());
         }
     }
 
@@ -1020,12 +1035,12 @@ public class MainController {
         if (failureCount == 0) {
             // All containers started successfully, no popup needed
         } else if (successCount == 0) {
-            showAlert(Alert.AlertType.ERROR, "Error", 
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                     "Failed to start all containers:" + errors);
         } else {
-            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+            showAlert(Alert.AlertType.WARNING, PARTIAL_SUCCESS_TITLE, 
                     successCount + " containers started successfully.\n" 
-                    + failureCount + " containers failed:" + errors);
+                    + failureCount + CONTAINERS_FAILED_MSG + errors);
         }
     }
 
@@ -1035,7 +1050,7 @@ public class MainController {
         if (isGroupSelected()) {
             List<Container> containers = getSelectedContainerGroup();
             if (containers.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                showAlert(Alert.AlertType.WARNING, NO_CONTAINERS_TITLE, NO_CONTAINERS_MSG);
                 return;
             }
 
@@ -1044,7 +1059,7 @@ public class MainController {
             confirm.setTitle("Confirm Stop");
             confirm.setHeaderText("Stop Container Group");
             confirm.setContentText("Are you sure you want to stop all " + containers.size() 
-                    + " containers in group '" + groupName + "'?");
+                    + CONTAINERS_IN_GROUP_MSG + groupName + "'?");
 
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -1056,7 +1071,7 @@ public class MainController {
         // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to stop.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to stop.");
             return;
         }
 
@@ -1065,7 +1080,7 @@ public class MainController {
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to stop container", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to stop container: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to stop container: " + e.getMessage());
         }
     }
 
@@ -1091,12 +1106,12 @@ public class MainController {
         if (failureCount == 0) {
             // All containers stopped successfully, no popup needed
         } else if (successCount == 0) {
-            showAlert(Alert.AlertType.ERROR, "Error", 
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                     "Failed to stop all containers:" + errors);
         } else {
-            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+            showAlert(Alert.AlertType.WARNING, PARTIAL_SUCCESS_TITLE, 
                     successCount + " containers stopped successfully.\n" 
-                    + failureCount + " containers failed:" + errors);
+                    + failureCount + CONTAINERS_FAILED_MSG + errors);
         }
     }
 
@@ -1106,7 +1121,7 @@ public class MainController {
         if (isGroupSelected()) {
             List<Container> containers = getSelectedContainerGroup();
             if (containers.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                showAlert(Alert.AlertType.WARNING, NO_CONTAINERS_TITLE, NO_CONTAINERS_MSG);
                 return;
             }
 
@@ -1115,7 +1130,7 @@ public class MainController {
             confirm.setTitle("Confirm Restart");
             confirm.setHeaderText("Restart Container Group");
             confirm.setContentText("Are you sure you want to restart all " + containers.size() 
-                    + " containers in group '" + groupName + "'?");
+                    + CONTAINERS_IN_GROUP_MSG + groupName + "'?");
 
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -1127,7 +1142,7 @@ public class MainController {
         // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to restart.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to restart.");
             return;
         }
 
@@ -1136,7 +1151,7 @@ public class MainController {
             refreshContainers();
         } catch (Exception e) {
             logger.error("Failed to restart container", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to restart container: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to restart container: " + e.getMessage());
         }
     }
 
@@ -1162,12 +1177,12 @@ public class MainController {
         if (failureCount == 0) {
             // All containers restarted successfully, no popup needed
         } else if (successCount == 0) {
-            showAlert(Alert.AlertType.ERROR, "Error", 
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                     "Failed to restart all containers:" + errors);
         } else {
-            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+            showAlert(Alert.AlertType.WARNING, PARTIAL_SUCCESS_TITLE, 
                     successCount + " containers restarted successfully.\n" 
-                    + failureCount + " containers failed:" + errors);
+                    + failureCount + CONTAINERS_FAILED_MSG + errors);
         }
     }
 
@@ -1177,16 +1192,16 @@ public class MainController {
         if (isGroupSelected()) {
             List<Container> containers = getSelectedContainerGroup();
             if (containers.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "No Containers", "The selected group has no containers.");
+                showAlert(Alert.AlertType.WARNING, NO_CONTAINERS_TITLE, NO_CONTAINERS_MSG);
                 return;
             }
 
             String groupName = containersTable.getSelectionModel().getSelectedItem().getValue().getName();
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Confirm Removal");
+            confirm.setTitle(CONFIRM_REMOVAL_TITLE);
             confirm.setHeaderText("Remove Container Group");
             confirm.setContentText("Are you sure you want to remove all " + containers.size() 
-                    + " containers in group '" + groupName + "'?");
+                    + CONTAINERS_IN_GROUP_MSG + groupName + "'?");
 
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -1198,12 +1213,12 @@ public class MainController {
         // Handle single container
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to remove.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to remove.");
             return;
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Removal");
+        confirm.setTitle(CONFIRM_REMOVAL_TITLE);
         confirm.setHeaderText("Remove Container");
         confirm.setContentText("Are you sure you want to remove container " + getContainerName(selected) + "?");
 
@@ -1214,7 +1229,7 @@ public class MainController {
                 refreshContainers();
             } catch (Exception e) {
                 logger.error("Failed to remove container", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to remove container: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to remove container: " + e.getMessage());
             }
         }
     }
@@ -1241,12 +1256,12 @@ public class MainController {
         if (failureCount == 0) {
             // All containers removed successfully, no popup needed
         } else if (successCount == 0) {
-            showAlert(Alert.AlertType.ERROR, "Error", 
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                     "Failed to remove all containers:" + errors);
         } else {
-            showAlert(Alert.AlertType.WARNING, "Partial Success", 
+            showAlert(Alert.AlertType.WARNING, PARTIAL_SUCCESS_TITLE, 
                     successCount + " containers removed successfully.\n" 
-                    + failureCount + " containers failed:" + errors);
+                    + failureCount + CONTAINERS_FAILED_MSG + errors);
         }
     }
 
@@ -1254,7 +1269,7 @@ public class MainController {
     private void handleOpenDetails() {
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to view details.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to view details.");
             return;
         }
         openContainerDetails(selected);
@@ -1320,22 +1335,22 @@ public class MainController {
         infoGrid.setVgap(5);
         
         Label nameLabel = new Label("Name:");
-        nameLabel.setStyle("-fx-font-weight: bold;");
+        nameLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label nameValue = new Label(containerName);
         
         Label idLabel = new Label("ID:");
-        idLabel.setStyle("-fx-font-weight: bold;");
+        idLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label idValue = new Label(containerId.substring(0, Math.min(12, containerId.length())));
         
         Label imageLabel = new Label("Image:");
-        imageLabel.setStyle("-fx-font-weight: bold;");
+        imageLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label imageValue = new Label(container.getImage());
         
         Label portsLabel = new Label("Ports:");
-        portsLabel.setStyle("-fx-font-weight: bold;");
+        portsLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         
         javafx.scene.Node portsNode;
-        boolean isRunning = container.getState() != null && container.getState().equalsIgnoreCase("running");
+        boolean isRunning = container.getState() != null && container.getState().equalsIgnoreCase(STATE_RUNNING);
         
         if (isRunning && container.getPorts() != null && container.getPorts().length > 0) {
             FlowPane flowPane = new FlowPane();
@@ -1364,12 +1379,12 @@ public class MainController {
         }
         
         Label statusLabel = new Label("Status:");
-        statusLabel.setStyle("-fx-font-weight: bold;");
+        statusLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label statusValue = new Label(container.getStatus());
-        if (container.getState() != null && container.getState().equalsIgnoreCase("running")) {
-            statusValue.setStyle("-fx-text-fill: green;");
+        if (container.getState() != null && container.getState().equalsIgnoreCase(STATE_RUNNING)) {
+            statusValue.setStyle(COLOR_GREEN);
         } else {
-            statusValue.setStyle("-fx-text-fill: red;");
+            statusValue.setStyle(COLOR_RED);
         }
         
         infoGrid.add(nameLabel, 0, 0);
@@ -1396,19 +1411,19 @@ public class MainController {
         statsGrid.setVgap(5);
 
         Label cpuLabel = new Label("CPU:");
-        cpuLabel.setStyle("-fx-font-weight: bold;");
+        cpuLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label cpuValue = new Label("---");
         
         Label ramLabel = new Label("RAM:");
-        ramLabel.setStyle("-fx-font-weight: bold;");
+        ramLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label ramValue = new Label("---");
 
         Label netLabel = new Label("Net I/O:");
-        netLabel.setStyle("-fx-font-weight: bold;");
+        netLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label netValue = new Label("---");
 
         Label diskLabel = new Label("Disk I/O:");
-        diskLabel.setStyle("-fx-font-weight: bold;");
+        diskLabel.setStyle(FONT_WEIGHT_BOLD_STYLE);
         Label diskValue = new Label("---");
 
         statsGrid.add(cpuLabel, 0, 0);
@@ -1482,14 +1497,14 @@ public class MainController {
                 // Refresh local state
                 Container updatedContainer = connectionManager.getDockerClient()
                         .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
-                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                boolean running = updatedContainer.getState().equalsIgnoreCase(STATE_RUNNING);
                 
                 setButtonState(running, startButton, stopButton, restartButton);
                 statusValue.setText(updatedContainer.getStatus());
                 if (running) {
-                    statusValue.setStyle("-fx-text-fill: green;");
+                    statusValue.setStyle(COLOR_GREEN);
                 } else {
-                    statusValue.setStyle("-fx-text-fill: red;");
+                    statusValue.setStyle(COLOR_RED);
                 }
 
                 // Restart logs
@@ -1497,7 +1512,7 @@ public class MainController {
                         startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
             } catch (Exception ex) {
                 logger.error("Failed to start container", ex);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to start container: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to start container: " + ex.getMessage());
             }
         });
         
@@ -1510,18 +1525,18 @@ public class MainController {
                 // Refresh local state
                 Container updatedContainer = connectionManager.getDockerClient()
                         .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
-                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                boolean running = updatedContainer.getState().equalsIgnoreCase(STATE_RUNNING);
                 
                 setButtonState(running, startButton, stopButton, restartButton);
                 statusValue.setText(updatedContainer.getStatus());
                 if (running) {
-                    statusValue.setStyle("-fx-text-fill: green;");
+                    statusValue.setStyle(COLOR_GREEN);
                 } else {
-                    statusValue.setStyle("-fx-text-fill: red;");
+                    statusValue.setStyle(COLOR_RED);
                 }
             } catch (Exception ex) {
                 logger.error("Failed to stop container", ex);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to stop container: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to stop container: " + ex.getMessage());
             }
         });
         
@@ -1533,14 +1548,14 @@ public class MainController {
                 // Refresh local state
                 Container updatedContainer = connectionManager.getDockerClient()
                         .listContainersCmd().withShowAll(true).withIdFilter(Collections.singleton(containerId)).exec().get(0);
-                boolean running = updatedContainer.getState().equalsIgnoreCase("running");
+                boolean running = updatedContainer.getState().equalsIgnoreCase(STATE_RUNNING);
                 
                 setButtonState(running, startButton, stopButton, restartButton);
                 statusValue.setText(updatedContainer.getStatus());
                 if (running) {
-                    statusValue.setStyle("-fx-text-fill: green;");
+                    statusValue.setStyle(COLOR_GREEN);
                 } else {
-                    statusValue.setStyle("-fx-text-fill: red;");
+                    statusValue.setStyle(COLOR_RED);
                 }
                 
                 // Restart logs
@@ -1548,7 +1563,7 @@ public class MainController {
                         startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
             } catch (Exception ex) {
                 logger.error("Failed to restart container", ex);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to restart container: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to restart container: " + ex.getMessage());
             }
         });
         
@@ -1599,7 +1614,7 @@ public class MainController {
     }
 
     private void openContainerConfig(String containerId, String containerName) {
-        String tabId = "config-" + containerId;
+        String tabId = CONFIG_PREFIX + containerId;
         
         // Check if tab already exists
         for (javafx.scene.control.Tab tab : mainTabPane.getTabs()) {
@@ -1683,7 +1698,7 @@ public class MainController {
             stage.show();
         } catch (Exception e) {
             logger.error("Failed to open process list window", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to open process list window: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to open process list window: " + e.getMessage());
         }
     }
 
@@ -1829,7 +1844,7 @@ public class MainController {
         if (!parts[0].isEmpty()) {
              javafx.scene.text.Text node = new javafx.scene.text.Text(parts[0]);
              node.setFill(currentColor);
-             node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+             node.setFont(javafx.scene.text.Font.font(FONT_COURIER_NEW, 12));
              textFlow.getChildren().add(node);
         }
 
@@ -1875,14 +1890,14 @@ public class MainController {
                 if (!content.isEmpty()) {
                     javafx.scene.text.Text node = new javafx.scene.text.Text(content);
                     node.setFill(currentColor);
-                    node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+                    node.setFont(javafx.scene.text.Font.font(FONT_COURIER_NEW, 12));
                     textFlow.getChildren().add(node);
                 }
             } else {
                 // No 'm' terminator, treat whole part as text (fallback)
                 javafx.scene.text.Text node = new javafx.scene.text.Text("\u001B[" + part);
                 node.setFill(currentColor);
-                node.setFont(javafx.scene.text.Font.font("Courier New", 12));
+                node.setFont(javafx.scene.text.Font.font(FONT_COURIER_NEW, 12));
                 textFlow.getChildren().add(node);
             }
         }
@@ -1909,7 +1924,7 @@ public class MainController {
             Container latestContainer = containers.get(0);
 
             // Check if container is running
-            if (latestContainer.getState() == null || !latestContainer.getState().equalsIgnoreCase("running")) {
+            if (latestContainer.getState() == null || !latestContainer.getState().equalsIgnoreCase(STATE_RUNNING)) {
                 showAlert(Alert.AlertType.WARNING, "Container Not Running",
                         "Container " + containerName + " is not running. Please start it first.");
                 return;
@@ -1942,7 +1957,7 @@ public class MainController {
 
         } catch (Exception e) {
             logger.error("Failed to attach console", e);
-            showAlert(Alert.AlertType.ERROR, "Error",
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE,
                     "Failed to open console: " + e.getMessage());
         }
     }
@@ -1951,7 +1966,7 @@ public class MainController {
     private void handleAttachConsole() {
         Container selected = getSelectedContainer();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a container to attach.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a container to attach.");
             return;
         }
         attachToContainer(selected);
@@ -1985,10 +2000,15 @@ public class MainController {
                     Platform.runLater(() -> {
                         refreshImages();
                     });
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.error("Image pull was interrupted", e);
+                    Platform.runLater(() ->
+                            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Image pull was interrupted: " + e.getMessage()));
                 } catch (Exception e) {
                     logger.error("Failed to pull image", e);
                     Platform.runLater(() ->
-                            showAlert(Alert.AlertType.ERROR, "Error", "Failed to pull image: " + e.getMessage()));
+                            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to pull image: " + e.getMessage()));
                 }
             }).start();
         });
@@ -1998,12 +2018,12 @@ public class MainController {
     private void handleRemoveImage() {
         Image selected = getSelectedImage();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select an image to remove.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select an image to remove.");
             return;
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Removal");
+        confirm.setTitle(CONFIRM_REMOVAL_TITLE);
         confirm.setHeaderText("Remove Image");
         confirm.setContentText("Are you sure you want to remove this image?");
 
@@ -2014,7 +2034,7 @@ public class MainController {
                 refreshImages();
             } catch (Exception e) {
                 logger.error("Failed to remove image", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to remove image: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to remove image: " + e.getMessage());
             }
         }
     }
@@ -2041,7 +2061,7 @@ public class MainController {
             } catch (Exception e) {
                 logger.error("Failed to calculate volume sizes", e);
                 Platform.runLater(() -> {
-                    showAlert(Alert.AlertType.ERROR, "Error", "Failed to calculate volume sizes: " + e.getMessage());
+                    showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to calculate volume sizes: " + e.getMessage());
                     calculateVolumeSizesButton.setDisable(false);
                 });
             }
@@ -2079,7 +2099,7 @@ public class MainController {
     private void handleOpenVolumeAction() {
         InspectVolumeResponse selected = getSelectedVolume();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a volume to open.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a volume to open.");
             return;
         }
 
@@ -2125,7 +2145,7 @@ public class MainController {
                 }
             } catch (Exception e) {
                 logger.error("Failed to open path in explorer: {}", path, e);
-                Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", 
+                Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                         "Failed to open explorer: " + e.getMessage()));
             }
         });
@@ -2135,12 +2155,12 @@ public class MainController {
     private void handleRemoveVolume() {
         InspectVolumeResponse selected = getSelectedVolume();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a volume to remove.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a volume to remove.");
             return;
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Removal");
+        confirm.setTitle(CONFIRM_REMOVAL_TITLE);
         confirm.setHeaderText("Remove Volume");
         confirm.setContentText("Are you sure you want to remove volume " + selected.getName() + "?");
 
@@ -2151,7 +2171,7 @@ public class MainController {
                 refreshVolumes();
             } catch (Exception e) {
                 logger.error("Failed to remove volume", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to remove volume: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to remove volume: " + e.getMessage());
             }
         }
     }
@@ -2180,7 +2200,7 @@ public class MainController {
                 refreshVolumes();
             } catch (RuntimeException e) {
                 logger.error("Failed to prune volumes", e);
-                showAlert(Alert.AlertType.ERROR, "Error", "Failed to prune volumes: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to prune volumes: " + e.getMessage());
             }
         }
     }
@@ -2194,12 +2214,12 @@ public class MainController {
     private void handleRemoveNetwork() {
         Network selected = networksTable.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a network to remove.");
+            showAlert(Alert.AlertType.WARNING, NO_SELECTION_TITLE, "Please select a network to remove.");
             return;
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Removal");
+        confirm.setTitle(CONFIRM_REMOVAL_TITLE);
         confirm.setHeaderText("Remove Network");
         confirm.setContentText("Are you sure you want to remove network "
                 + selected.getName() + "?");
@@ -2211,7 +2231,7 @@ public class MainController {
                 refreshNetworks();
             } catch (Exception e) {
                 logger.error("Failed to remove network", e);
-                showAlert(Alert.AlertType.ERROR, "Error",
+                showAlert(Alert.AlertType.ERROR, ERROR_TITLE,
                         "Failed to remove network: " + e.getMessage());
             }
         }
@@ -2254,7 +2274,7 @@ public class MainController {
         }
 
         String state = container.getState();
-        boolean isRunning = state != null && state.equalsIgnoreCase("running");
+        boolean isRunning = state != null && state.equalsIgnoreCase(STATE_RUNNING);
 
         setButtonState(isRunning, startContainerButton, stopContainerButton, restartContainerButton);
     }
@@ -2334,7 +2354,7 @@ public class MainController {
             }
         } catch (RuntimeException e) {
             logger.error("Failed to refresh containers", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh containers: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh containers: " + e.getMessage());
         }
     }
 
@@ -2399,7 +2419,7 @@ public class MainController {
             imagesTable.setRoot(root);
         } catch (RuntimeException e) {
             logger.error("Failed to refresh images", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh images: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh images: " + e.getMessage());
         }
     }
 
@@ -2450,7 +2470,7 @@ public class MainController {
             volumesTable.setRoot(root);
         } catch (RuntimeException e) {
             logger.error("Failed to refresh volumes", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh volumes: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh volumes: " + e.getMessage());
         }
     }
 
@@ -2483,7 +2503,7 @@ public class MainController {
             networksTable.setItems(networkList);
         } catch (Exception e) {
             logger.error("Failed to refresh networks", e);
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to refresh networks: " + e.getMessage());
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh networks: " + e.getMessage());
         }
     }
 
@@ -2512,13 +2532,13 @@ public class MainController {
     private void updateConnectionStatus() {
         if (connectionManager.isConnected()) {
             connectionStatusLabel.setText("Connected: " + connectionManager.getCurrentConnectionString());
-            connectionStatusLabel.setStyle("-fx-text-fill: green;");
+            connectionStatusLabel.setStyle(COLOR_GREEN);
             connectAutoButton.setDisable(true);
             disconnectButton.setDisable(false);
             mainTabPane.setDisable(false);
         } else {
             connectionStatusLabel.setText("Not Connected");
-            connectionStatusLabel.setStyle("-fx-text-fill: red;");
+            connectionStatusLabel.setStyle(COLOR_RED);
             connectAutoButton.setDisable(false);
             disconnectButton.setDisable(true);
             mainTabPane.setDisable(true);
@@ -2670,7 +2690,7 @@ public class MainController {
             if (port.getPublicPort() != null) {
                 String ip = port.getIp();
                 if (ip == null || ip.isEmpty()) {
-                    ip = "0.0.0.0";
+                    ip = ANY_IP;
                 }
                 sb.append(ip).append(":").append(port.getPublicPort());
                 sb.append("->").append(port.getPrivatePort());
@@ -2695,7 +2715,7 @@ public class MainController {
         if (port.getPublicPort() != null) {
             String ip = port.getIp();
             if (ip == null || ip.isEmpty()) {
-                ip = "0.0.0.0";
+                ip = ANY_IP;
             }
             sb.append(ip).append(":").append(port.getPublicPort());
             sb.append("->").append(port.getPrivatePort());
@@ -2720,7 +2740,7 @@ public class MainController {
         }
         
         String ip = port.getIp();
-        if (ip == null || ip.isEmpty() || ip.equals("0.0.0.0")) {
+        if (ip == null || ip.isEmpty() || ip.equals(ANY_IP)) {
             ip = "localhost";
         }
         
@@ -2752,7 +2772,7 @@ public class MainController {
             }
         } catch (java.io.IOException | java.net.URISyntaxException e) {
             logger.error("Failed to open URL in browser: {}", url, e);
-            showAlert(Alert.AlertType.ERROR, "Error", 
+            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, 
                     "Failed to open URL in browser: " + e.getMessage());
         }
     }
