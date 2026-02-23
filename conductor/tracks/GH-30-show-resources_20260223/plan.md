@@ -2,9 +2,9 @@
 
 ## Phase 1: Core Statistics Fetching & Configuration
 - [x] Task: Implement settings for resource update interval (default 5s) in `SettingsManager`. (9c0da9c)
-- [~] Task: Create a service to fetch container stats asynchronously using `docker-java`.
-- [ ] Task: Implement parsing logic for Docker stats (CPU, RAM, Net, Disk) into a dedicated model.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Statistics Fetching & Configuration' (Protocol in workflow.md)
+- [x] Task: Create a service to fetch container stats asynchronously using `docker-java`. (458d974)
+- [x] Task: Implement parsing logic for Docker stats (CPU, RAM, Net, Disk) into a dedicated model. (458d974)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Core Statistics Fetching & Configuration' (Protocol in workflow.md)
 
 ## Phase 2: UI Integration in Details Tab
 - [ ] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab.
