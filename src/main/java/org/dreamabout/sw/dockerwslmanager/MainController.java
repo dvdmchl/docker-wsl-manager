@@ -1983,7 +1983,6 @@ public class MainController {
                             .awaitCompletion();
 
                     Platform.runLater(() -> {
-                        showAlert(Alert.AlertType.INFORMATION, "Success", "Image pulled successfully.");
                         refreshImages();
                     });
                 } catch (Exception e) {
@@ -2012,7 +2011,6 @@ public class MainController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 connectionManager.getDockerClient().removeImageCmd(selected.getId()).withForce(true).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Image removed successfully.");
                 refreshImages();
             } catch (Exception e) {
                 logger.error("Failed to remove image", e);
@@ -2150,7 +2148,6 @@ public class MainController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 connectionManager.getDockerClient().removeVolumeCmd(selected.getName()).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Volume removed successfully.");
                 refreshVolumes();
             } catch (Exception e) {
                 logger.error("Failed to remove volume", e);
@@ -2211,7 +2208,6 @@ public class MainController {
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
                 connectionManager.getDockerClient().removeNetworkCmd(selected.getId()).exec();
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Network removed successfully.");
                 refreshNetworks();
             } catch (Exception e) {
                 logger.error("Failed to remove network", e);

@@ -15,8 +15,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2' (Protocol in workflow.md) [9723c38]
 
 ## Phase 3: Final Polish & Verification
-- [ ] Task: Check Image Operations
+- [x] Task: Check Image Operations
     - [ ] Scan for image pull/remove success alerts and remove them if found.
-- [ ] Task: Comprehensive Manual Verification
+- [~] Task: Comprehensive Manual Verification
     - [ ] Verify the entire application flow to ensure no "Info" alerts interrupt the user flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3' (Protocol in workflow.md)
