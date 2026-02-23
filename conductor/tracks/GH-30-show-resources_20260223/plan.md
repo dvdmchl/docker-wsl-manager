@@ -10,16 +10,16 @@
 - [x] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab. (aa55d31)
 - [x] Task: Implement `MainController` logic to periodically update the UI with new statistics when a container is selected. (aa55d31)
 - [x] Task: Add a button/link in the Details tab to trigger the detailed process view. (aa55d31)
-- [~] Task: Conductor - User Manual Verification 'Phase 2: UI Integration in Details Tab' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: UI Integration in Details Tab' (Protocol in workflow.md)
 
 ## Phase 3: Detailed Process View Window
-- [~] Task: Create a new FXML and Controller for the "Process List" window.
-- [ ] Task: Implement the backend logic to execute `docker top` and return the process data.
-- [ ] Task: Wire the "Show Processes" button to open the new window and populate it with data.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Detailed Process View Window' (Protocol in workflow.md)
+- [x] Task: Create a new FXML and Controller for the "Process List" window. (62832c2)
+- [x] Task: Implement the backend logic to execute `docker top` and return the process data. (62832c2)
+- [x] Task: Wire the "Show Processes" button to open the new window and populate it with data. (62832c2)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Detailed Process View Window' (Protocol in workflow.md)
 
 ## Phase 4: Quality Assurance & Polish
-- [ ] Task: Ensure resource fetching stops when the application is minimized or the container is no longer selected.
+- [~] Task: Ensure resource fetching stops when the application is minimized or the container is no longer selected.
 - [ ] Task: Verify error handling for cases where stats cannot be fetched (e.g., container stopped during fetching).
 - [ ] Task: Final verification of all Quality Gates (Checkstyle, SpotBugs, Tests).
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Quality Assurance & Polish' (Protocol in workflow.md)

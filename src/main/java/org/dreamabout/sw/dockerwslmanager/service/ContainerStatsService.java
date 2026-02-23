@@ -33,9 +33,12 @@ public class ContainerStatsService {
      *
      * @param containerId     The ID of the container.
      * @param onStatsReceived Callback to be invoked when new stats are available.
+     * @param onComplete      Callback to be invoked when the stream completes.
+     * @param onError         Callback to be invoked when an error occurs.
      * @return A Closeable that can be used to stop the stream.
      */
-    public Closeable fetchStats(String containerId, Consumer<ContainerStats> onStatsReceived) {
+    public Closeable fetchStats(String containerId, Consumer<ContainerStats> onStatsReceived, 
+                                Runnable onComplete, Consumer<Throwable> onError) {
         logger.info("Starting stats stream for container: {}", containerId);
         return dockerClient.statsCmd(containerId).exec(new ResultCallback<Statistics>() {
             @Override
@@ -58,11 +61,17 @@ public class ContainerStatsService {
             @Override
             public void onError(Throwable throwable) {
                 logger.error("Error in stats stream for container: {}", containerId, throwable);
+                if (onError != null) {
+                    onError.accept(throwable);
+                }
             }
 
             @Override
             public void onComplete() {
                 logger.info("Stats stream completed for container: {}", containerId);
+                if (onComplete != null) {
+                    onComplete.run();
+                }
             }
 
             @Override
@@ -70,6 +79,13 @@ public class ContainerStatsService {
                 logger.debug("Closing stats stream for {}", containerId);
             }
         });
+    }
+
+    /**
+     * Starts an asynchronous stream of statistics for the given container with default handlers.
+     */
+    public Closeable fetchStats(String containerId, Consumer<ContainerStats> onStatsReceived) {
+        return fetchStats(containerId, onStatsReceived, null, null);
     }
 
     /**

@@ -20,6 +20,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -89,6 +90,7 @@ public class MainController {
         final Label ramValue;
         final Label netValue;
         final Label diskValue;
+        long lastUpdateTime = 0;
 
         ContainerStatsLabels(Label cpuValue, Label ramValue, Label netValue, Label diskValue) {
             this.cpuValue = cpuValue;
@@ -559,6 +561,40 @@ public class MainController {
 
         // Check for updates on startup
         performUpdateCheck(true);
+
+        // Only stream stats for the active tab and when window is focused
+        mainTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (oldTab != null && oldTab.getUserData() instanceof String) {
+                String containerId = (String) oldTab.getUserData();
+                if (!containerId.startsWith("config-")) {
+                    stopStatsStream(containerId);
+                }
+            }
+            if (newTab != null && newTab.getUserData() instanceof String) {
+                String containerId = (String) newTab.getUserData();
+                if (!containerId.startsWith("config-")) {
+                    restartStatsForTab(newTab);
+                }
+            }
+        });
+
+        // Pause stats when window is minimized
+        mainTabPane.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.windowProperty().addListener((obsW, oldWindow, newWindow) -> {
+                    if (newWindow instanceof javafx.stage.Stage) {
+                        javafx.stage.Stage stage = (javafx.stage.Stage) newWindow;
+                        stage.iconifiedProperty().addListener((obsI, oldIconified, isMinimized) -> {
+                            if (isMinimized) {
+                                pauseAllStatsStreams();
+                            } else {
+                                resumeActiveTabStatsStream();
+                            }
+                        });
+                    }
+                });
+            }
+        });
     }
 
     private void configureAllShortcuts() {
@@ -829,7 +865,30 @@ public class MainController {
                 logger.error("Error closing stats stream for container {}", containerId, e);
             }
         }
-        activeStatsLabels.remove(containerId);
+    }
+
+    private void pauseAllStatsStreams() {
+        for (String id : activeStatsStreams.keySet()) {
+            stopStatsStream(id);
+        }
+    }
+
+    private void resumeActiveTabStatsStream() {
+        javafx.scene.control.Tab currentTab = mainTabPane.getSelectionModel().getSelectedItem();
+        if (currentTab != null && currentTab.getUserData() instanceof String) {
+            String containerId = (String) currentTab.getUserData();
+            if (!containerId.startsWith("config-")) {
+                restartStatsForTab(currentTab);
+            }
+        }
+    }
+
+    private void restartStatsForTab(javafx.scene.control.Tab tab) {
+        String containerId = (String) tab.getUserData();
+        ContainerStatsLabels labels = activeStatsLabels.get(containerId);
+        if (labels != null) {
+            startStatsStreaming(containerId, labels.cpuValue, labels.ramValue, labels.netValue, labels.diskValue);
+        }
     }
 
     private void startStatsStreaming(String containerId, Label cpuValue, Label ramValue, 
@@ -844,21 +903,49 @@ public class MainController {
         activeStatsLabels.put(containerId, new ContainerStatsLabels(cpuValue, ramValue, netValue, diskValue));
 
         java.io.Closeable stream = service.fetchStats(containerId, stats -> {
-            Platform.runLater(() -> {
-                ContainerStatsLabels labels = activeStatsLabels.get(containerId);
-                if (labels != null) {
-                    labels.cpuValue.setText(String.format("%.2f%%", stats.getCpuPercentage()));
-                    labels.ramValue.setText(FormatUtils.formatSize(stats.getMemoryUsage()) + " / " 
-                            + FormatUtils.formatSize(stats.getMemoryLimit()));
-                    labels.netValue.setText(FormatUtils.formatSize(stats.getNetworkReadBytes()) + " / " 
-                            + FormatUtils.formatSize(stats.getNetworkWriteBytes()));
-                    labels.diskValue.setText(FormatUtils.formatSize(stats.getDiskReadBytes()) + " / " 
-                            + FormatUtils.formatSize(stats.getDiskWriteBytes()));
+            // Check if this is the active tab
+            Tab selected = mainTabPane.getSelectionModel().getSelectedItem();
+            if (selected == null || !containerId.equals(selected.getUserData())) {
+                return;
+            }
+
+            ContainerStatsLabels labels = activeStatsLabels.get(containerId);
+            if (labels != null) {
+                long now = System.currentTimeMillis();
+                long intervalMs = settingsManager.getStatsRefreshInterval() * 1000L;
+                
+                if (now - labels.lastUpdateTime >= intervalMs) {
+                    labels.lastUpdateTime = now;
+                    Platform.runLater(() -> {
+                        labels.cpuValue.setText(String.format("%.2f%%", stats.getCpuPercentage()));
+                        labels.ramValue.setText(FormatUtils.formatSize(stats.getMemoryUsage()) + " / " 
+                                + FormatUtils.formatSize(stats.getMemoryLimit()));
+                        labels.netValue.setText(FormatUtils.formatSize(stats.getNetworkReadBytes()) + " / " 
+                                + FormatUtils.formatSize(stats.getNetworkWriteBytes()));
+                        labels.diskValue.setText(FormatUtils.formatSize(stats.getDiskReadBytes()) + " / " 
+                                + FormatUtils.formatSize(stats.getDiskWriteBytes()));
+                    });
                 }
-            });
+            }
+        }, () -> {
+            // onComplete
+            Platform.runLater(() -> resetStatsLabels(containerId));
+        }, throwable -> {
+            // onError
+            Platform.runLater(() -> resetStatsLabels(containerId));
         });
 
         activeStatsStreams.put(containerId, stream);
+    }
+
+    private void resetStatsLabels(String containerId) {
+        ContainerStatsLabels labels = activeStatsLabels.get(containerId);
+        if (labels != null) {
+            labels.cpuValue.setText("---");
+            labels.ramValue.setText("---");
+            labels.netValue.setText("---");
+            labels.diskValue.setText("---");
+        }
     }
 
     private ContainerStatsService getContainerStatsService() {
@@ -1494,6 +1581,7 @@ public class MainController {
         detailsTab.setOnClosed(e -> {
             stopLogStream(containerId);
             stopStatsStream(containerId);
+            activeStatsLabels.remove(containerId);
         });
 
         // Start streaming logs in follow mode
