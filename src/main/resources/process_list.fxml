@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.dreamabout.sw.dockerwslmanager.ProcessListController"
+            prefWidth="800.0" prefHeight="600.0">
+    <top>
+        <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f4f4f4;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label fx:id="titleLabel" text="Processes for Container" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                <Pane HBox.hgrow="ALWAYS" />
+                <Button fx:id="refreshButton" text="⟳ Refresh" onAction="#handleRefresh"/>
+            </HBox>
+        </VBox>
+    </top>
+    <center>
+        <TableView fx:id="processTable" style="-fx-font-family: 'Courier New', monospace;">
+            <!-- Columns will be added dynamically based on docker top output -->
+        </TableView>
+    </center>
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_RIGHT" style="-fx-padding: 10;">
+            <Button text="Close" onAction="#handleClose"/>
+        </HBox>
+    </bottom>
+</BorderPane>

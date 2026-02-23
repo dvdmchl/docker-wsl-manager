@@ -1594,8 +1594,22 @@ public class MainController {
     }
 
     private void handleShowProcesses(String containerId, String containerName) {
-        showAlert(Alert.AlertType.INFORMATION, "Coming Soon", 
-                "The detailed process view for " + containerName + " is under development.");
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/process_list.fxml"));
+            javafx.scene.Parent root = loader.load();
+            
+            ProcessListController controller = loader.getController();
+            controller.setContainerInfo(containerId, containerName, connectionManager);
+            
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setTitle("Container Processes: " + containerName);
+            stage.setScene(new javafx.scene.Scene(root));
+            stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/app_icon.png")));
+            stage.show();
+        } catch (Exception e) {
+            logger.error("Failed to open process list window", e);
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to open process list window: " + e.getMessage());
+        }
     }
 
     private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
