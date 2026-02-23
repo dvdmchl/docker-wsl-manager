@@ -1,11 +1,11 @@
 # Implementation Plan - GH-37 Do not popup redundant messages
 
 ## Phase 1: Connection Logic
-- [~] Task: Locate and Remove Connection Success Popup
+- [x] Task: Locate and Remove Connection Success Popup [d40bd4e]
     - [ ] Identify the code block in `MainController` or `DockerConnectionManager` responsible for "Connection Successful" alerts.
     - [ ] Remove the success alert.
     - [ ] Verify that error alerts (e.g., connection failed) still function.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1' (Protocol in workflow.md) [d40bd4e]
 
 ## Phase 2: Container Lifecycle (Start/Stop/Restart/Remove)
 - [ ] Task: Remove Container Operation Success Popups
