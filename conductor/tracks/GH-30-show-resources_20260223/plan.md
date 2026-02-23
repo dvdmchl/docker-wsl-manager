@@ -7,13 +7,13 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Statistics Fetching & Configuration' (Protocol in workflow.md)
 
 ## Phase 2: UI Integration in Details Tab
-- [~] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab.
-- [ ] Task: Implement `MainController` logic to periodically update the UI with new statistics when a container is selected.
-- [ ] Task: Add a button/link in the Details tab to trigger the detailed process view.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: UI Integration in Details Tab' (Protocol in workflow.md)
+- [x] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab. (aa55d31)
+- [x] Task: Implement `MainController` logic to periodically update the UI with new statistics when a container is selected. (aa55d31)
+- [x] Task: Add a button/link in the Details tab to trigger the detailed process view. (aa55d31)
+- [~] Task: Conductor - User Manual Verification 'Phase 2: UI Integration in Details Tab' (Protocol in workflow.md)
 
 ## Phase 3: Detailed Process View Window
-- [ ] Task: Create a new FXML and Controller for the "Process List" window.
+- [~] Task: Create a new FXML and Controller for the "Process List" window.
 - [ ] Task: Implement the backend logic to execute `docker top` and return the process data.
 - [ ] Task: Wire the "Show Processes" button to open the new window and populate it with data.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Detailed Process View Window' (Protocol in workflow.md)
