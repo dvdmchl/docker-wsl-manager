@@ -8,3 +8,8 @@ The issue will be updated with the progress of the track and any relevant inform
 
 - [x] **Track: GH-32: Show space usage in volumes**
   *Link: [./tracks/GH-32-volume-size/](./tracks/GH-32-volume-size/)*
+
+---
+
+- [ ] **Track: Do not popup redundant messages (GH-37)**
+*Link: [./tracks/GH-37-redundant-messages/](./tracks/GH-37-redundant-messages/)*
