@@ -9,6 +9,7 @@ import com.github.dockerjava.api.model.Network;
 import com.github.dockerjava.api.model.PruneResponse;
 import com.github.dockerjava.api.model.PruneType;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,6 +19,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -44,6 +46,8 @@ import org.dreamabout.sw.dockerwslmanager.logic.ConfigLogic;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
+import org.dreamabout.sw.dockerwslmanager.model.ContainerStats;
+import org.dreamabout.sw.dockerwslmanager.service.ContainerStatsService;
 import org.dreamabout.sw.dockerwslmanager.service.VolumeUsageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,10 +75,28 @@ public class MainController {
     private final VolumeUsageService volumeUsageService = new VolumeUsageService();
     private final ConfigLogic configLogic = new ConfigLogic();
     private VolumePathResolver volumePathResolver;
+    private ContainerStatsService containerStatsService;
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
     private DockerConnectionManager connectionManager;
+
+    // Map to track active stats labels by container ID for updates
+    private final Map<String, ContainerStatsLabels> activeStatsLabels = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static class ContainerStatsLabels {
+        final Label cpuValue;
+        final Label ramValue;
+        final Label netValue;
+        final Label diskValue;
+
+        ContainerStatsLabels(Label cpuValue, Label ramValue, Label netValue, Label diskValue) {
+            this.cpuValue = cpuValue;
+            this.ramValue = ramValue;
+            this.netValue = netValue;
+            this.diskValue = diskValue;
+        }
+    }
 
     @FXML
     private Label connectionStatusLabel;
@@ -182,6 +204,7 @@ public class MainController {
         volumePathResolver = new VolumePathResolver(settingsManager.getWslDistro());
 
         updateConnectionStatus();
+// ...
 
         // Auto-connect on startup
         autoConnectOnStartup();
@@ -673,12 +696,15 @@ public class MainController {
         grid.setPadding(new javafx.geometry.Insets(20, 150, 10, 10));
 
         TextField intervalField = new TextField(String.valueOf(settingsManager.getAutoRefreshInterval()));
+        TextField statsIntervalField = new TextField(String.valueOf(settingsManager.getStatsRefreshInterval()));
         TextField distroField = new TextField(settingsManager.getWslDistro());
 
         grid.add(new Label("Auto-refresh Interval (seconds):"), 0, 0);
         grid.add(intervalField, 1, 0);
-        grid.add(new Label("WSL Distro (for volumes):"), 0, 1);
-        grid.add(distroField, 1, 1);
+        grid.add(new Label("Stats Refresh Interval (seconds):"), 0, 1);
+        grid.add(statsIntervalField, 1, 1);
+        grid.add(new Label("WSL Distro (for volumes):"), 0, 2);
+        grid.add(distroField, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
 
@@ -686,7 +712,8 @@ public class MainController {
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
-                return new javafx.util.Pair<>(intervalField.getText(), distroField.getText());
+                return new javafx.util.Pair<>(intervalField.getText() + "|" + statsIntervalField.getText(), 
+                        distroField.getText());
             }
             return null;
         });
@@ -694,17 +721,21 @@ public class MainController {
         Optional<javafx.util.Pair<String, String>> result = dialog.showAndWait();
         result.ifPresent(settings -> {
             try {
-                int seconds = Integer.parseInt(settings.getKey());
-                if (seconds < 1) {
-                    seconds = 1;
-                }
-                settingsManager.setAutoRefreshInterval(seconds);
+                String[] intervals = settings.getKey().split("\\|");
+                int autoRefreshSecs = Integer.parseInt(intervals[0]);
+                int statsRefreshSecs = Integer.parseInt(intervals[1]);
+                
+                if (autoRefreshSecs < 1) autoRefreshSecs = 1;
+                if (statsRefreshSecs < 1) statsRefreshSecs = 1;
+
+                settingsManager.setAutoRefreshInterval(autoRefreshSecs);
+                settingsManager.setStatsRefreshInterval(statsRefreshSecs);
                 settingsManager.setWslDistro(settings.getValue());
                 settingsManager.saveSettings();
                 volumePathResolver = new VolumePathResolver(settings.getValue());
                 setupAutoRefreshTimeline();
             } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid number for interval.");
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter valid numbers for intervals.");
             } catch (Exception e) {
                 logger.error("Failed to save settings", e);
                 showAlert(Alert.AlertType.ERROR, "Error", "Failed to save settings: " + e.getMessage());
@@ -782,8 +813,59 @@ public class MainController {
     @FXML
     private void handleDisconnect() {
         connectionManager.disconnect();
+        containerStatsService = null;
+        activeStatsLabels.clear();
+        activeStatsStreams.clear();
         updateConnectionStatus();
         clearAllTables();
+    }
+
+    private void stopStatsStream(String containerId) {
+        java.io.Closeable callback = activeStatsStreams.remove(containerId);
+        if (callback != null) {
+            try {
+                callback.close();
+            } catch (Exception e) {
+                logger.error("Error closing stats stream for container {}", containerId, e);
+            }
+        }
+        activeStatsLabels.remove(containerId);
+    }
+
+    private void startStatsStreaming(String containerId, Label cpuValue, Label ramValue, 
+                                     Label netValue, Label diskValue) {
+        stopStatsStream(containerId);
+
+        ContainerStatsService service = getContainerStatsService();
+        if (service == null) {
+            return;
+        }
+
+        activeStatsLabels.put(containerId, new ContainerStatsLabels(cpuValue, ramValue, netValue, diskValue));
+
+        java.io.Closeable stream = service.fetchStats(containerId, stats -> {
+            Platform.runLater(() -> {
+                ContainerStatsLabels labels = activeStatsLabels.get(containerId);
+                if (labels != null) {
+                    labels.cpuValue.setText(String.format("%.2f%%", stats.getCpuPercentage()));
+                    labels.ramValue.setText(FormatUtils.formatSize(stats.getMemoryUsage()) + " / " 
+                            + FormatUtils.formatSize(stats.getMemoryLimit()));
+                    labels.netValue.setText(FormatUtils.formatSize(stats.getNetworkReadBytes()) + " / " 
+                            + FormatUtils.formatSize(stats.getNetworkWriteBytes()));
+                    labels.diskValue.setText(FormatUtils.formatSize(stats.getDiskReadBytes()) + " / " 
+                            + FormatUtils.formatSize(stats.getDiskWriteBytes()));
+                }
+            });
+        });
+
+        activeStatsStreams.put(containerId, stream);
+    }
+
+    private ContainerStatsService getContainerStatsService() {
+        if (containerStatsService == null && connectionManager.isConnected()) {
+            containerStatsService = new ContainerStatsService(connectionManager.getDockerClient());
+        }
+        return containerStatsService;
     }
 
     @FXML
@@ -1119,6 +1201,8 @@ public class MainController {
 
     // Map to track active log stream callbacks by container ID
     private final Map<String, java.io.Closeable> activeLogStreams = new java.util.concurrent.ConcurrentHashMap<>();
+    // Map to track active stats stream callbacks by container ID
+    private final Map<String, java.io.Closeable> activeStatsStreams = new java.util.concurrent.ConcurrentHashMap<>();
 
     private void stopLogStream(String containerId) {
         java.io.Closeable callback = activeLogStreams.remove(containerId);
@@ -1223,6 +1307,44 @@ public class MainController {
         infoGrid.add(statusValue, 1, 2);
         
         header.getChildren().add(infoGrid);
+
+        // Resource Consumption Section
+        header.getChildren().add(new Separator());
+        Label statsTitle = new Label("Resource Consumption");
+        statsTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        header.getChildren().add(statsTitle);
+
+        GridPane statsGrid = new GridPane();
+        statsGrid.setHgap(10);
+        statsGrid.setVgap(5);
+
+        Label cpuLabel = new Label("CPU:");
+        cpuLabel.setStyle("-fx-font-weight: bold;");
+        Label cpuValue = new Label("---");
+        
+        Label ramLabel = new Label("RAM:");
+        ramLabel.setStyle("-fx-font-weight: bold;");
+        Label ramValue = new Label("---");
+
+        Label netLabel = new Label("Net I/O:");
+        netLabel.setStyle("-fx-font-weight: bold;");
+        Label netValue = new Label("---");
+
+        Label diskLabel = new Label("Disk I/O:");
+        diskLabel.setStyle("-fx-font-weight: bold;");
+        Label diskValue = new Label("---");
+
+        statsGrid.add(cpuLabel, 0, 0);
+        statsGrid.add(cpuValue, 1, 0);
+        statsGrid.add(ramLabel, 2, 0);
+        statsGrid.add(ramValue, 3, 0);
+        statsGrid.add(netLabel, 0, 1);
+        statsGrid.add(netValue, 1, 1);
+        statsGrid.add(diskLabel, 2, 1);
+        statsGrid.add(diskValue, 3, 1);
+
+        header.getChildren().add(statsGrid);
+        
         layout.setTop(header);
         
         // Create center area with logs
@@ -1264,11 +1386,13 @@ public class MainController {
         Button attachButton = createConfiguredButton(">_ _Attach Console", "action.details.attach");
         Button configButton = createConfiguredButton("⚙ _Config", "action.details.config");
         Button openVolumesButton = createConfiguredButton("📂 Open _Volumes", "action.details.volumes");
+        Button showProcessesButton = new Button("🔍 Show Processes");
         Button copyAllButton = new Button("📋 Copy All");
         copyAllButton.setOnAction(e -> selectionHandler.copyAllToClipboard());
         
         openVolumesButton.setOnAction(e -> handleOpenContainerVolumes(container));
         configButton.setOnAction(e -> openContainerConfig(containerId, containerName));
+        showProcessesButton.setOnAction(e -> handleShowProcesses(containerId, containerName));
         
         // Initial button state
         setButtonState(isRunning, startButton, stopButton, restartButton);
@@ -1357,7 +1481,7 @@ public class MainController {
         attachButton.setOnAction(e -> attachToContainer(container));
         
         footer.getChildren().addAll(startButton, stopButton, restartButton, attachButton, configButton, 
-                openVolumesButton, copyAllButton);
+                openVolumesButton, showProcessesButton, copyAllButton);
         layout.setBottom(footer);
         
         detailsTab.setContent(layout);
@@ -1366,8 +1490,16 @@ public class MainController {
         mainTabPane.getTabs().add(detailsTab);
         mainTabPane.getSelectionModel().select(detailsTab);
         
+        // Set cleanup
+        detailsTab.setOnClosed(e -> {
+            stopLogStream(containerId);
+            stopStatsStream(containerId);
+        });
+
         // Start streaming logs in follow mode
         startLogStreaming(logTextFlow, logScrollPane, containerId, detailsTab);
+        // Start streaming stats
+        startStatsStreaming(containerId, cpuValue, ramValue, netValue, diskValue);
     }
 
     private void handleOpenContainerVolumes(Container container) {
@@ -1459,6 +1591,11 @@ public class MainController {
 
         mainTabPane.getTabs().add(configTab);
         mainTabPane.getSelectionModel().select(configTab);
+    }
+
+    private void handleShowProcesses(String containerId, String containerName) {
+        showAlert(Alert.AlertType.INFORMATION, "Coming Soon", 
+                "The detailed process view for " + containerName + " is under development.");
     }
 
     private void startLogStreaming(javafx.scene.text.TextFlow logTextFlow, 
@@ -1573,9 +1710,6 @@ public class MainController {
                         .withFollowStream(true)  // Follow stream for continuous updates
                         .withTail(1000)
                         .exec(callback);
-
-                // Store callback so we can close it when tab is closed
-                logTab.setOnClosed(e -> stopLogStream(containerId));
 
             } catch (Exception e) {
                 logger.error("Failed to stream logs", e);
