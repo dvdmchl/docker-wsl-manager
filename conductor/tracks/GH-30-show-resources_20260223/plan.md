@@ -19,7 +19,7 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Detailed Process View Window' (Protocol in workflow.md)
 
 ## Phase 4: Quality Assurance & Polish
-- [~] Task: Ensure resource fetching stops when the application is minimized or the container is no longer selected.
-- [ ] Task: Verify error handling for cases where stats cannot be fetched (e.g., container stopped during fetching).
-- [ ] Task: Final verification of all Quality Gates (Checkstyle, SpotBugs, Tests).
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Quality Assurance & Polish' (Protocol in workflow.md)
+- [x] Task: Ensure resource fetching stops when the application is minimized or the container is no longer selected. (8e4b260)
+- [x] Task: Verify error handling for cases where stats cannot be fetched (e.g., container stopped during fetching). (8e4b260)
+- [x] Task: Final verification of all Quality Gates (Checkstyle, SpotBugs, Tests). (8e4b260)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Quality Assurance & Polish' (Protocol in workflow.md)

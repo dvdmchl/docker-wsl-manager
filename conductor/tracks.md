@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [~] **Track: Show resources consumption**
+- [x] **Track: Show resources consumption**
 *Link: [./tracks/GH-30-show-resources_20260223/](./tracks/GH-30-show-resources_20260223/)*

@@ -11,6 +11,8 @@ To provide a seamless, native-feeling desktop experience for developers using Do
   - View running and stopped containers.
   - Start, stop, restart, and remove containers.
   - Inspect container logs, configuration details (JSON), and metadata (supporting text selection, copy all, and standard shortcuts).
+  - Real-time resource monitoring (CPU, RAM, Network, Disk I/O) in the Details tab.
+  - Detailed process list view (docker top) in a separate window.
   - Safe interactive console access via 'docker exec'.
 - **Image Management:**
   - List available images.
