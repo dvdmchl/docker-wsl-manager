@@ -1,7 +1,7 @@
 # Implementation Plan: Show Resources Consumption (GH-30)
 
 ## Phase 1: Core Statistics Fetching & Configuration
-- [ ] Task: Implement settings for resource update interval (default 5s) in `SettingsManager`.
+- [~] Task: Implement settings for resource update interval (default 5s) in `SettingsManager`.
 - [ ] Task: Create a service to fetch container stats asynchronously using `docker-java`.
 - [ ] Task: Implement parsing logic for Docker stats (CPU, RAM, Net, Disk) into a dedicated model.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Statistics Fetching & Configuration' (Protocol in workflow.md)

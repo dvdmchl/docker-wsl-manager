@@ -55,6 +55,19 @@ public final class SettingsManager {
         settings.setProperty("auto.refresh.interval", String.valueOf(seconds));
     }
 
+    public int getStatsRefreshInterval() {
+        String val = settings.getProperty("stats.refresh.interval", "5");
+        try {
+            return Integer.parseInt(val);
+        } catch (NumberFormatException e) {
+            return 5;
+        }
+    }
+
+    public void setStatsRefreshInterval(int seconds) {
+        settings.setProperty("stats.refresh.interval", String.valueOf(seconds));
+    }
+
     public String getWslDistro() {
         return settings.getProperty("wsl.distro", "docker-desktop-data");
     }
