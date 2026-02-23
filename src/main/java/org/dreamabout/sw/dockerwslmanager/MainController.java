@@ -837,8 +837,6 @@ public class MainController {
     private void handleConnectAuto() {
         if (connectionManager.connectAutoDiscover()) {
             updateConnectionStatus();
-            showAlert(Alert.AlertType.INFORMATION, "Connection Successful",
-                    "Auto-discovered and connected to Docker in WSL.");
             refreshAll();
         } else {
             showAlert(Alert.AlertType.ERROR, "Connection Failed",

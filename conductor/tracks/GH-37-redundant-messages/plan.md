@@ -1,7 +1,7 @@
 # Implementation Plan - GH-37 Do not popup redundant messages
 
 ## Phase 1: Connection Logic
-- [ ] Task: Locate and Remove Connection Success Popup
+- [~] Task: Locate and Remove Connection Success Popup
     - [ ] Identify the code block in `MainController` or `DockerConnectionManager` responsible for "Connection Successful" alerts.
     - [ ] Remove the success alert.
     - [ ] Verify that error alerts (e.g., connection failed) still function.

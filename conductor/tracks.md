@@ -11,5 +11,5 @@ The issue will be updated with the progress of the track and any relevant inform
 
 ---
 
-- [ ] **Track: Do not popup redundant messages (GH-37)**
+- [~] **Track: Do not popup redundant messages (GH-37)**
 *Link: [./tracks/GH-37-redundant-messages/](./tracks/GH-37-redundant-messages/)*
