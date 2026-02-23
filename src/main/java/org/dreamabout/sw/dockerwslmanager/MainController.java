@@ -1449,7 +1449,7 @@ public class MainController {
                 return;
             }
             String text = configTextArea.getText();
-            int index = text.toLowerCase().indexOf(newVal.toLowerCase());
+            int index = text.toLowerCase(java.util.Locale.ROOT).indexOf(newVal.toLowerCase(java.util.Locale.ROOT));
             if (index >= 0) {
                 configTextArea.selectRange(index, index + newVal.length());
                 // TextArea doesn't have built-in "scroll to selection" that works reliably with programmatic selection
