@@ -26,12 +26,10 @@ public class ProcessListController {
     private Button refreshButton;
 
     private String containerId;
-    private String containerName;
     private DockerConnectionManager connectionManager;
 
     public void setContainerInfo(String containerId, String containerName, DockerConnectionManager connectionManager) {
         this.containerId = containerId;
-        this.containerName = containerName;
         this.connectionManager = connectionManager;
         this.titleLabel.setText("Processes for: " + containerName);
         handleRefresh();

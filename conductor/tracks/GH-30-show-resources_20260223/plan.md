@@ -23,3 +23,6 @@
 - [x] Task: Verify error handling for cases where stats cannot be fetched (e.g., container stopped during fetching). (8e4b260)
 - [x] Task: Final verification of all Quality Gates (Checkstyle, SpotBugs, Tests). (8e4b260)
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Quality Assurance & Polish' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [~] Task: Apply review suggestions
