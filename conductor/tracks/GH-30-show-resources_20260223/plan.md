@@ -1,13 +1,13 @@
 # Implementation Plan: Show Resources Consumption (GH-30)
 
-## Phase 1: Core Statistics Fetching & Configuration
+## Phase 1: Core Statistics Fetching & Configuration [checkpoint: ebda668]
 - [x] Task: Implement settings for resource update interval (default 5s) in `SettingsManager`. (9c0da9c)
 - [x] Task: Create a service to fetch container stats asynchronously using `docker-java`. (458d974)
 - [x] Task: Implement parsing logic for Docker stats (CPU, RAM, Net, Disk) into a dedicated model. (458d974)
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Statistics Fetching & Configuration' (Protocol in workflow.md)
 
 ## Phase 2: UI Integration in Details Tab
-- [ ] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab.
+- [~] Task: Update `main.fxml` to include a layout for resource consumption in the container Details tab.
 - [ ] Task: Implement `MainController` logic to periodically update the UI with new statistics when a container is selected.
 - [ ] Task: Add a button/link in the Details tab to trigger the detailed process view.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: UI Integration in Details Tab' (Protocol in workflow.md)
