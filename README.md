@@ -38,88 +38,50 @@ Lightweight standalone JavaFX application for managing Docker running in WSL 2, 
 
 ## Requirements
 
-- Java 22 or higher
-- Maven 3.6 or higher
-- Docker running in WSL 2 (for Windows users)
-- Docker daemon exposed on TCP port (typically 2375)
+- **Runtime**: Java 22 or higher
+- **Build**: Maven 3.6 or higher
+- **MSI Build**: JDK 25 and [WiX Toolset v7+](https://wixtoolset.org/)
+- **Environment**: Docker running in WSL 2 (for Windows users)
+- **Configuration**: Docker daemon exposed on TCP port (typically 2375)
 
 ## Building
 
-Build the project using Maven:
-
+### Standard Build
 ```bash
 mvn clean package
 ```
+Creates a shaded JAR in `target/`.
 
-This will create a shaded JAR file in the `target/` directory.
+### Standalone Release (Optimized)
+```bash
+mvn clean package -P release
+```
+Creates `docker-wsl-manager-[version]-standalone.jar` with optimized manifest and merged service files.
+
+### Windows MSI Installer
+```bash
+mvn clean package -P msi -DskipTests
+```
+Requires JDK 25 and WiX 7. One-time WiX 7 EULA acceptance is required: `wix eula accept wix7`.
 
 ## Running
 
-### Using Maven
-
+### Using the Standalone JAR
 ```bash
-mvn javafx:run
+java -jar target/docker-wsl-manager-1.2.0-standalone.jar
 ```
 
-### Using the JAR file
+## Developer Guide
 
-```bash
-java -jar target/docker-wsl-manager-1.1.0.jar
-```
-
-Note: If you have JavaFX modules installed separately, you may need to specify the module path.
-
-## Setting up Docker in WSL
-
-To expose Docker daemon on TCP port in WSL:
-
-1. Edit Docker daemon configuration:
-   ```bash
-   sudo nano /etc/docker/daemon.json
+### Preparing a New Release
+1. **Update Version**: Increment version in `pom.xml`.
+2. **Run Release Script**:
+   ```powershell
+   .\build-release.ps1 -Version "1.2.0"
    ```
-
-2. Add the following content:
-   ```json
-   {
-     "hosts": ["unix:///var/run/docker.sock", "tcp://0.0.0.0:2375"]
-   }
-   ```
-
-3. Restart Docker:
-   ```bash
-   sudo service docker restart
-   ```
-
-4. Get your WSL IP address:
-   ```bash
-   hostname -I
-   ```
-
-5. Use this IP address to connect from the application.
-
-**Security Note**: Exposing Docker daemon on TCP without TLS is insecure. Only use this in trusted networks or for local development.
-
-## Usage
-
-1. Launch the application
-2. Connect to Docker using one of three methods:
-   - **Auto-Discover WSL**: Automatically finds and connects to Docker in WSL
-   - **Connect Manual**: Enter IP address (e.g., `172.x.x.x`) and port (e.g., `2375`)
-   - **Connect from ENV**: Uses the `DOCKER_HOST` environment variable
-3. Once connected, navigate through tabs to manage:
-   - Containers
-   - Images
-   - Volumes
-   - Networks
-   - Logs
-
-## Technologies Used
-
-- **Java 22**: Programming language
-- **JavaFX 25.0.1**: UI framework
-- **docker-java 3.7.0**: Docker API client library
-- **Maven**: Build and dependency management
-- **SLF4J + Logback**: Logging
+   This script automates cleaning, building the release profile, and packaging the artifacts into a `release/` folder and a ZIP archive.
+3. **Generate MSI**: Run the MSI profile (requires JDK 25).
+4. **Test**: Verify the standalone JAR and MSI installer on a clean environment.
 
 ## Project Structure
 
@@ -128,14 +90,16 @@ docker-wsl-manager/
 ├── src/
 │   ├── main/
 │   │   ├── java/
-│   │   │   └── com/dvdmchl/dockerwslmanager/
+│   │   │   └── org/dreamabout/sw/dockerwslmanager/
 │   │   │       ├── Main.java                     # Application entry point
 │   │   │       ├── MainController.java           # Main UI controller
 │   │   │       └── DockerConnectionManager.java  # Docker connection handler
 │   │   └── resources/
-│   │       └── main.fxml                         # JavaFX layout
+│   │       ├── main.fxml                         # JavaFX layout
+│   │       └── shortcuts.properties              # Keyboard shortcuts
 │   └── test/
-│       └── java/
+├── conductor/                                    # Project documentation & tracks (Conductor)
+├── release/                                      # Created by build-release.ps1
 ├── pom.xml                                       # Maven configuration
 └── README.md                                     # This file
 ```

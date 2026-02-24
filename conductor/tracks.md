@@ -6,4 +6,5 @@ Track ID must have issue number, for example: `#123`. This will help to easily i
 The issue will be updated with the progress of the track and any relevant information.
 ---
 
-
+- [~] **Track: Create release as MSI or EXE installer.**
+*Link: [./tracks/GH-38-msi-installer_20260224/](./tracks/GH-38-msi-installer_20260224/)*

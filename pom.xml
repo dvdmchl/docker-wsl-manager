@@ -316,6 +316,93 @@
         </profile>
 
         <profile>
+            <id>msi</id>
+            <build>
+                <plugins>
+                    <!-- Create custom runtime image using jlink -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>clean-runtime</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell</executable>
+                                    <arguments>
+                                        <argument>-Command</argument>
+                                        <argument>if (Test-Path ${project.build.directory}/runtime) { Remove-Item -Path ${project.build.directory}/runtime -Recurse -Force }</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>jlink</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${java.home}\bin\jlink.exe</executable>
+                                    <arguments>
+                                        <argument>--module-path</argument>
+                                        <argument>${java.home}\jmods</argument>
+                                        <argument>--add-modules</argument>
+                                        <argument>java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.unsupported</argument>
+                                        <argument>--output</argument>
+                                        <argument>${project.build.directory}/runtime</argument>
+                                        <argument>--strip-debug</argument>
+                                        <argument>--compress</argument>
+                                        <argument>zip</argument>
+                                        <argument>--no-header-files</argument>
+                                        <argument>--no-man-pages</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>jpackage</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${java.home}\bin\jpackage.exe</executable>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>msi</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/installer</argument>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>docker-wsl-manager-${project.version}-standalone.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>org.dreamabout.sw.dockerwslmanager.Main</argument>
+                                        <argument>--name</argument>
+                                        <argument>DockerWSLManager</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/runtime</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>DreamAbout Software</argument>
+                                        <argument>--win-shortcut</argument>
+                                        <argument>--win-menu</argument>
+                                        <argument>--win-menu-group</argument>
+                                        <argument>DockerWSLManager</argument>
+                                        <argument>--app-version</argument>
+                                        <argument>${project.version}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
             <id>sonar</id>
             <properties>
                 <sonar.host.url>http://localhost:9000</sonar.host.url>
