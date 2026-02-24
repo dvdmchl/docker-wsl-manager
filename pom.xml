@@ -351,12 +351,12 @@
                                         <argument>--module-path</argument>
                                         <argument>${java.home}\jmods</argument>
                                         <argument>--add-modules</argument>
-                                        <argument>java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.unsupported</argument>
+                                        <argument>java.base,java.compiler,java.desktop,java.instrument,java.logging,java.management,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.sql,java.xml,jdk.unsupported,javafx.base,javafx.controls,javafx.fxml,javafx.graphics,jdk.crypto.ec,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.mscapi,jdk.localedata,jdk.naming.dns</argument>
                                         <argument>--output</argument>
                                         <argument>${project.build.directory}/runtime</argument>
                                         <argument>--strip-debug</argument>
                                         <argument>--compress</argument>
-                                        <argument>zip</argument>
+                                        <argument>zip-6</argument>
                                         <argument>--no-header-files</argument>
                                         <argument>--no-man-pages</argument>
                                     </arguments>
@@ -383,6 +383,8 @@
                                         <argument>org.dreamabout.sw.dockerwslmanager.Main</argument>
                                         <argument>--name</argument>
                                         <argument>DockerWSLManager</argument>
+                                        <argument>--icon</argument>
+                                        <argument>src/main/resources/app_icon.ico</argument>
                                         <argument>--runtime-image</argument>
                                         <argument>${project.build.directory}/runtime</argument>
                                         <argument>--vendor</argument>
@@ -393,6 +395,9 @@
                                         <argument>DockerWSLManager</argument>
                                         <argument>--app-version</argument>
                                         <argument>${project.version}</argument>
+                                        <argument>--win-dir-chooser</argument>
+                                        <argument>--win-upgrade-uuid</argument>
+                                        <argument>6f019ae0-c2e8-3f49-ba1a-57f4947fa326</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

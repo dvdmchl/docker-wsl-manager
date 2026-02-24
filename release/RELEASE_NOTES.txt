@@ -1,51 +1,39 @@
-# Docker WSL Manager - Release 1.1.0
+# Docker WSL Manager - Release 1.2.0
 
-## What's New in 1.1.0
+## What's New in 1.2.0
 
 ### Features & Enhancements
+- **Windows MSI Installer**: Added support for generating a standard Windows Installer (.msi) bundled with a custom runtime.
 - **Enhanced Log Viewer**: Refactored to support real-time log streaming with ANSI color support.
 - **Smart Scroll Lock**: Implemented a robust scroll-lock mechanism that pauses auto-scrolling while reading history and resumes at the bottom.
-- **Container Details Page**: Renamed "View Logs" to "Open Details", providing a dedicated space to view output and control the container.
+- **Container Details Page**: Dedicated space to view output and control the container.
 - **Reactive UI**: Action buttons (Start, Stop, Restart) now automatically react to the container's running state.
-- **Dynamic Keyboard Shortcuts**: Implemented configurable shortcuts (e.g., Ctrl+S, Ctrl+R) for all major actions via a new Settings menu.
-- **Immediate Shortcut Application**: Changes to keybinds now apply instantly without requiring an application restart.
-- **Auto-Update Check**: The application now automatically checks for newer versions on GitHub during startup.
-- **Configurable Auto-Refresh**: Added a "General Settings" menu to toggle and customize the container list refresh interval.
-- **Selection Preservation**: The application now remembers and restores your selected container after a refresh.
-- **Clickable Ports**: Container ports in the Details view are now clickable hyperlinks.
-- **Better Keyboard Control**: The application now focuses the first container on startup for immediate keyboard navigation.
+- **Dynamic Keyboard Shortcuts**: Configurable shortcuts (e.g., Ctrl+S, Ctrl+R) via the Settings menu.
+- **Auto-Update Check**: Automatically checks for newer versions on GitHub during startup.
 
 ### Fixes & Quality
-- **Improved Stability**: Resolved multiple potential memory leaks and null pointer issues (verified via SonarQube & SpotBugs).
+- **SonarQube Quality Gate**: Resolved multiple BLOCKER, CRITICAL, and MAJOR findings, significantly improving code reliability and security.
+- **Redundant Message Suppression**: Fixed issues with duplicate alert popups during network errors.
+- **Improved Stability**: Resolved multiple potential memory leaks and null pointer issues.
 - **Stream Reliability**: Fixed an issue where logs would stop updating after a container restart.
-- **Code Quality**: Achieved a passing status on the local SonarQube Quality Gate.
 
 ## Installation
 
+### MSI Installer (Recommended for Windows)
+1. Download `DockerWSLManager-1.2.0.msi`
+2. Run the installer and follow instructions
+3. Launch from Start Menu or Desktop shortcut
+
+### Standalone JAR
 1. Ensure Java 22 or higher is installed
-2. Run the application:
-   - Windows: Double-click un.bat or run java -jar docker-wsl-manager.jar
-   - Linux/Mac: Run java -jar docker-wsl-manager.jar
-
-## System Requirements
-
-- Java Runtime Environment (JRE) 22 or higher
-- Windows 10/11 with WSL 2 (recommended)
-- Docker Desktop or Docker daemon
-
-## Files Included
-
-- docker-wsl-manager.jar - Main application (standalone, all dependencies included)
-- un.bat - Windows launcher script
-- README.md - User documentation
-- LICENSE - License information
+2. Run the application: `java -jar docker-wsl-manager.jar`
 
 ## Build Information
 
-- Version: 1.1.0
-- Build Date: 2026-01-10 23:33:47
-- Java Version: 22
-- JavaFX Version: 25.0.1
+- Version: 1.2.0
+- Build Date: 2026-02-24
+- Java Version: 25 (for MSI) / 22 (for JAR)
+- WiX Toolset: v7.0
 
 ## Support
 

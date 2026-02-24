@@ -59,10 +59,14 @@ mvn clean package -P release
 Creates `docker-wsl-manager-[version]-standalone.jar` with optimized manifest and merged service files.
 
 ### Windows MSI Installer
-```bash
-mvn clean package -P msi -DskipTests
-```
 Requires JDK 25 and WiX 7. One-time WiX 7 EULA acceptance is required: `wix eula accept wix7`.
+
+Execute the following in PowerShell (adjust paths as necessary):
+```powershell
+$env:JAVA_HOME = "C:\dev\Java\jdk-25.0.1-full"
+$env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH + ";C:\Program Files\WiX Toolset v7.0\bin"
+mvn package -P msi -DskipTests
+```
 
 ## Running
 
@@ -80,7 +84,12 @@ java -jar target/docker-wsl-manager-1.2.0-standalone.jar
    .\build-release.ps1 -Version "1.2.0"
    ```
    This script automates cleaning, building the release profile, and packaging the artifacts into a `release/` folder and a ZIP archive.
-3. **Generate MSI**: Run the MSI profile (requires JDK 25).
+3. **Generate MSI**: Run the MSI profile using JDK 25 and WiX 7:
+   ```powershell
+   $env:JAVA_HOME = "C:\dev\Java\jdk-25.0.1-full"
+   $env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH + ";C:\Program Files\WiX Toolset v7.0\bin"
+   mvn package -P msi -DskipTests
+   ```
 4. **Test**: Verify the standalone JAR and MSI installer on a clean environment.
 
 ## Project Structure
