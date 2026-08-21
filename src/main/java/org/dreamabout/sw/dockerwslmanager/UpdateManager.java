@@ -17,7 +17,7 @@ public class UpdateManager {
     private static final String REPO_NAME = "docker-wsl-manager";
     
     // Fallback if manifest is missing
-    private static final String DEV_VERSION = "1.1.0";
+    private static final String DEV_VERSION = "0.0.0-dev";
 
     public static class ReleaseInfo {
         private String tagName;

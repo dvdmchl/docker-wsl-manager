@@ -725,7 +725,7 @@ public class MainController {
     private void handleAboutAction() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("About Docker WSL Manager");
-        alert.setHeaderText("Docker WSL Manager v1.1.0");
+        alert.setHeaderText("Docker WSL Manager v" + new UpdateManager().getCurrentVersion());
         alert.setContentText("A JavaFX application to manage Docker instances running in WSL 2.\n\n" +
                 "Source code: https://github.com/dvdmchl/Docker-WSL-Manager");
         alert.showAndWait();

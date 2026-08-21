@@ -1,8 +1,8 @@
 # Tech Stack: Docker-WSL-Manager
 
 ## Core
-- **Language:** Java 22
-- **Framework:** JavaFX 25.0.1 (using FXML for layout)
+- **Language:** Java 21
+- **Framework:** JavaFX 21.0.5 (using FXML for layout)
 - **Docker Client:** docker-java 3.7.0 (with Apache HttpClient 5 transport)
 - **JSON Processing:** Jackson Databind 2.18.2
 
@@ -21,7 +21,7 @@
 
 ## Platform
 - **OS:** Windows (running WSL 2)
-- **Runtime:** Java 22+ JRE
+- **Runtime:** Java 21+ JRE
 - **Critical Constraints:**
   - **Docker:** All `docker` commands **MUST** be prefixed with `wsl` (e.g., `wsl docker ps`).
   - **curl:** `curl` commands should be executed **natively** (without `wsl`).

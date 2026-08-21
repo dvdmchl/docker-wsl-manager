@@ -1,120 +1,61 @@
-# Docker WSL Manager - Release Build Guide
+# Release process
 
-## Building Standalone JAR
+This document is the authoritative release procedure for Docker WSL Manager.
 
-### Requirements
-- Java Development Kit (JDK) 22 or higher
-- Apache Maven 3.6 or higher
+## Prerequisites
 
-### Build Instructions
+- Git working tree is clean except for the intended release changes.
+- Maven is available and uses a JDK capable of building Java 21 source.
+- For an MSI: JDK 25 and WiX Toolset v7+ are installed; run `wix eula accept wix7` once.
+- The release version in `pom.xml` is final and follows semantic versioning.
 
-1. **Standard build (development):**
-   ```bash
-   mvn clean package
+## 1. Prepare the release commit
+
+1. Update `<version>` in `pom.xml`.
+2. Copy `RELEASE_NOTES_TEMPLATE.md` to a version-specific Markdown file and complete it with user-visible changes, fixes, upgrade notes, and known limitations.
+3. Commit and push those changes to `main`.
+4. Run the test suite:
+
+   ```powershell
+   mvn test '-Dnet.bytebuddy.experimental=true'
    ```
 
-2. **Release build (optimized for distribution):**
-   ```bash
-   mvn clean package -P release
-   ```
-   
-   The release profile includes:
-   - Additional metadata in MANIFEST
-   - Exclusion of Maven metadata files
-   - Build information (JDK version, Maven version, build date)
-   - Optimized for distribution
+## 2. Build artifacts
 
-3. **Output files:**
-   The build process creates two JAR files in the `target/` directory:
-   
-   - `docker-wsl-manager-1.0.0.jar` - Regular JAR (small, requires dependencies)
-   - `docker-wsl-manager-1.0.0-standalone.jar` - **Standalone JAR (use this for distribution)**
+Build the standalone JAR and ZIP. The script reads the version from `pom.xml` and writes only to ignored `release-output/`:
 
-### Distribution Package
-
-The standalone JAR contains:
-- All application code
-- All dependencies (JavaFX, Docker Java client, logging libraries, etc.)
-- Proper MANIFEST with main class configuration
-- Service provider configurations
-- Multi-release JAR support
-
-### Running the Application
-
-**Windows:**
-```bash
-java -jar docker-wsl-manager-1.0.0-standalone.jar
+```powershell
+.\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md"
 ```
 
-Or use the provided batch file:
-```bash
-run.bat
+The ZIP contains:
+
+- `docker-wsl-manager.jar` — standalone JavaFX application;
+- `run.bat` — launcher for Java 21+;
+- `README.md`, `LICENSE`, and `RELEASE_NOTES.md`.
+
+For a Windows MSI, start PowerShell with JDK 25 and WiX 7 on `PATH`, then add `-BuildMsi`:
+
+```powershell
+$env:JAVA_HOME = "C:\dev\Java\jdk-25.0.1-full"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH;C:\Program Files\WiX Toolset v7.0\bin"
+.\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md" -BuildMsi
 ```
 
-**Linux/Mac:**
-```bash
-java -jar docker-wsl-manager-1.0.0-standalone.jar
+## 3. Verify
+
+- Run `docker-wsl-manager.jar` using Java 21+.
+- Test the packaged `run.bat`.
+- If built, install and launch the MSI on a clean Windows environment.
+- Check that the ZIP and MSI contain the intended version and release notes.
+
+## 4. Publish
+
+After verification, create and push the matching annotated tag:
+
+```powershell
+git tag -a v<version> -m "Release v<version>"
+git push origin v<version>
 ```
 
-### Creating a Release
-
-1. Build the standalone JAR:
-   ```bash
-   mvn clean package
-   ```
-
-2. Copy the standalone JAR from `target/`:
-   ```bash
-   cp target/docker-wsl-manager-1.0.0-standalone.jar release/
-   ```
-
-3. Include in the release package:
-   - `docker-wsl-manager-1.0.0-standalone.jar`
-   - `run.bat` (for Windows users)
-   - `README.md` (user documentation)
-   - `LICENSE` (if applicable)
-
-### System Requirements
-
-**Runtime Requirements:**
-- Java Runtime Environment (JRE) 22 or higher
-- Windows 10/11 with WSL 2 (for Docker WSL integration)
-- Docker Desktop or Docker in WSL 2
-
-**Recommended:**
-- At least 512 MB RAM for the application
-- Docker daemon running and accessible
-
-### Troubleshooting
-
-**"Could not find or load main class"**
-- Ensure you're using Java 22 or higher: `java -version`
-- Make sure you're running the `-standalone.jar` file
-
-**"JavaFX runtime components are missing"**
-- This should not happen with the standalone JAR as JavaFX is bundled
-- If it occurs, ensure you're using the correct JAR file
-
-**Docker connection issues**
-- Verify Docker daemon is running
-- Check Docker host configuration in the application
-- Ensure proper permissions for Docker socket access
-
-### Version Information
-
-- **Current Version:** 1.0.0
-- **Java Version:** 22
-- **JavaFX Version:** 25.0.1
-- **Docker Java Client:** 3.7.0
-
-### Build Configuration
-
-The standalone JAR is created using Maven Shade Plugin with:
-- All dependencies bundled (uber JAR)
-- Service provider configurations merged
-- Signature files excluded to prevent security exceptions
-- Multi-release JAR support enabled
-- Manifest with proper main class and metadata
-
-For more information, see `pom.xml` configuration.
-
+Create a GitHub Release from that tag and use the version-specific release notes as its body. Upload the ZIP and, when available, the MSI. The application checks GitHub's `releases/latest` endpoint, so publish the release rather than only creating a tag.

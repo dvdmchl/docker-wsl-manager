@@ -38,7 +38,7 @@ Lightweight standalone JavaFX application for managing Docker running in WSL 2, 
 
 ## Requirements
 
-- **Runtime**: Java 22 or higher
+- **Runtime**: Java 21 or higher
 - **Build**: Maven 3.6 or higher
 - **MSI Build**: JDK 25 and [WiX Toolset v7+](https://wixtoolset.org/)
 - **Environment**: Docker running in WSL 2 (for Windows users)
@@ -78,19 +78,21 @@ java -jar target/docker-wsl-manager-1.2.0-standalone.jar
 ## Developer Guide
 
 ### Preparing a New Release
-1. **Update Version**: Increment version in `pom.xml`.
-2. **Run Release Script**:
+The complete release checklist is in [RELEASE_BUILD.md](RELEASE_BUILD.md). In brief:
+
+1. Update the version in `pom.xml` and write version-specific release notes.
+2. Build the verified standalone package:
+
    ```powershell
-   .\build-release.ps1 -Version "1.2.0"
+   .\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md"
    ```
-   This script automates cleaning, building the release profile, and packaging the artifacts into a `release/` folder and a ZIP archive.
-3. **Generate MSI**: Run the MSI profile using JDK 25 and WiX 7:
+   The script reads the version from `pom.xml`, runs tests, and writes all artifacts to the ignored `release-output/` directory.
+3. Build an MSI when required, using JDK 25 and WiX 7:
+
    ```powershell
-   $env:JAVA_HOME = "C:\dev\Java\jdk-25.0.1-full"
-   $env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH + ";C:\Program Files\WiX Toolset v7.0\bin"
-   mvn package -P msi -DskipTests
+   .\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md" -BuildMsi
    ```
-4. **Test**: Verify the standalone JAR and MSI installer on a clean environment.
+4. Verify the artifacts, create and push tag `v<version>`, then create the GitHub Release and upload the ZIP and MSI.
 
 ## Project Structure
 
@@ -108,7 +110,7 @@ docker-wsl-manager/
 │   │       └── shortcuts.properties              # Keyboard shortcuts
 │   └── test/
 ├── conductor/                                    # Project documentation & tracks (Conductor)
-├── release/                                      # Created by build-release.ps1
+├── release-output/                                # Ignored release artifacts created by build-release.ps1
 ├── pom.xml                                       # Maven configuration
 └── README.md                                     # This file
 ```
