@@ -72,7 +72,7 @@ mvn package -P msi -DskipTests
 
 ### Using the Standalone JAR
 ```bash
-java -jar target/docker-wsl-manager-1.2.0-standalone.jar
+java -jar target/docker-wsl-manager-<version>-standalone.jar
 ```
 
 ## Developer Guide
