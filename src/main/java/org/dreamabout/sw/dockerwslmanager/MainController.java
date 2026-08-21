@@ -2284,11 +2284,28 @@ public class MainController {
             return;
         }
 
-        // Capture current selection
+        // Preserve the current tree context because refresh replaces all TreeItems.
         TreeItem<ContainerViewItem> currentSelection = containersTable.getSelectionModel().getSelectedItem();
         String selectedId = null;
-        if (currentSelection != null && !currentSelection.getValue().isGroup()) {
-            selectedId = currentSelection.getValue().getContainer().getId();
+        String selectedGroup = null;
+        if (currentSelection != null) {
+            ContainerViewItem selectedValue = currentSelection.getValue();
+            if (selectedValue.isGroup()) {
+                selectedGroup = selectedValue.getName();
+            } else {
+                selectedId = selectedValue.getContainer().getId();
+            }
+        }
+
+        Map<String, Boolean> expandedGroups = new TreeMap<>();
+        TreeItem<ContainerViewItem> currentRoot = containersTable.getRoot();
+        if (currentRoot != null) {
+            for (TreeItem<ContainerViewItem> group : currentRoot.getChildren()) {
+                ContainerViewItem groupValue = group.getValue();
+                if (groupValue != null && groupValue.isGroup()) {
+                    expandedGroups.put(groupValue.getName(), group.isExpanded());
+                }
+            }
         }
 
         try {
@@ -2322,7 +2339,7 @@ public class MainController {
 
             for (Map.Entry<String, List<Container>> entry : grouped.entrySet()) {
                 TreeItem<ContainerViewItem> groupItem = new TreeItem<>(new ContainerViewItem(entry.getKey()));
-                groupItem.setExpanded(true);
+                groupItem.setExpanded(expandedGroups.getOrDefault(entry.getKey(), true));
                 for (Container c : entry.getValue()) {
                     groupItem.getChildren().add(new TreeItem<>(new ContainerViewItem(c, getContainerName(c))));
                 }
@@ -2346,11 +2363,18 @@ public class MainController {
                         break;
                     }
                 }
+            } else if (selectedGroup != null) {
+                for (TreeItem<ContainerViewItem> group : root.getChildren()) {
+                    if (selectedGroup.equals(group.getValue().getName())) {
+                        containersTable.getSelectionModel().select(group);
+                        restored = true;
+                        break;
+                    }
+                }
             }
 
             if (!restored && !root.getChildren().isEmpty()) {
                 containersTable.getSelectionModel().select(0);
-                containersTable.requestFocus();
             }
         } catch (RuntimeException e) {
             logger.error("Failed to refresh containers", e);
