@@ -122,4 +122,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### AI Agent Support
-This project is configured to work with Gemini AI coding agent.
+This project provides repository instructions for Codex in [AGENTS.md](AGENTS.md).
