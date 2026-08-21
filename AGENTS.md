@@ -13,7 +13,6 @@
 - Do not commit build output (`target/`) or release artifacts.
 - Update or add tests when behaviour can be covered without a Docker daemon.
 - Use GitHub MCP tools for GitHub issues and pull requests when available. Use local Git only for local status, diff, staging, and commits.
-- When a commit implements or resolves a GitHub issue, prefix its commit message with the issue number in the format `#<number> - ` (for example, `#43 - fix(ui): Preserve container tree state on refresh`).
 
 ## Verification
 
