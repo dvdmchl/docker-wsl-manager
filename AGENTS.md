@@ -13,6 +13,7 @@
 - Do not commit build output (`target/`) or release artifacts.
 - Update or add tests when behaviour can be covered without a Docker daemon.
 - Use GitHub MCP tools for GitHub issues and pull requests when available. Use local Git only for local status, diff, staging, and commits.
+- Work directly on the `main` branch. Do not create a feature branch or pull request unless the user explicitly requests one.
 
 ## Verification
 
