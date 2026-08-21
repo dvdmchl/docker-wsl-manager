@@ -11,11 +11,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Invoke-Maven {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
+    param([string[]]$MavenArguments)
 
-    & mvn @Arguments
+    & mvn @MavenArguments
     if ($LASTEXITCODE -ne 0) {
-        throw "Maven command failed: mvn $($Arguments -join ' ')"
+        throw "Maven command failed: mvn $($MavenArguments -join ' ')"
     }
 }
 
@@ -48,10 +48,10 @@ $releaseNotes = Resolve-Path -LiteralPath $ReleaseNotesPath
 Write-Host "Building Docker WSL Manager $version" -ForegroundColor Cyan
 
 Write-Host "[1/5] Running tests..." -ForegroundColor Yellow
-Invoke-Maven test '-Dnet.bytebuddy.experimental=true'
+Invoke-Maven -MavenArguments @("test", "-Dnet.bytebuddy.experimental=true")
 
 Write-Host "[2/5] Building standalone JAR..." -ForegroundColor Yellow
-Invoke-Maven clean package -P release -DskipTests
+Invoke-Maven -MavenArguments @("clean", "package", "-Prelease", "-DskipTests")
 
 $standaloneJar = "target\docker-wsl-manager-$version-standalone.jar"
 if (-not (Test-Path -LiteralPath $standaloneJar -PathType Leaf)) {
@@ -72,13 +72,23 @@ Copy-Item -LiteralPath $releaseNotes -Destination (Join-Path $packageDirectory "
 
 if ($BuildMsi) {
     Write-Host "[4/5] Building MSI..." -ForegroundColor Yellow
-    Invoke-Maven package -P msi -DskipTests
+    Invoke-Maven -MavenArguments @("package", "-Pmsi", "-DskipTests")
 
-    $msi = Get-ChildItem -Path "target\installer" -Filter "*.msi" -File |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
+    $deadline = (Get-Date).AddMinutes(5)
+    $msi = $null
+    do {
+        if (Test-Path -LiteralPath "target\installer" -PathType Container) {
+            $msi = Get-ChildItem -Path "target\installer" -Filter "*.msi" -File |
+                Sort-Object LastWriteTime -Descending |
+                Select-Object -First 1
+        }
+        if ($null -eq $msi) {
+            Start-Sleep -Seconds 2
+        }
+    } while ($null -eq $msi -and (Get-Date) -lt $deadline)
+
     if ($null -eq $msi) {
-        throw "MSI was not created in target\installer. Verify that JDK 25 and WiX Toolset v7+ are configured."
+        throw "MSI was not created in target\installer within five minutes. Verify that JDK 25 and WiX Toolset v7+ are configured."
     }
     Copy-Item -LiteralPath $msi.FullName -Destination $packageDirectory
 } else {
