@@ -1,134 +1,163 @@
-# docker-wsl-manager
+# Docker WSL Manager
 
-Lightweight standalone JavaFX application for managing Docker running in WSL 2, connecting via TCP/IP.
+Lightweight JavaFX desktop application for managing Docker Engine running in
+WSL 2. The application discovers the WSL address and connects to the Docker
+daemon over TCP/IP.
 
-![Application Screenshot](doc/img/screen1.png)
-![Application Screenshot](doc/img/screen2.png)
+![Containers grouped by Docker Compose project](https://raw.githubusercontent.com/dvdmchl/docker-wsl-manager/main/doc/img/screen1.png)
+![Container details with logs and resource statistics](https://raw.githubusercontent.com/dvdmchl/docker-wsl-manager/main/doc/img/screen2.png)
 
 ## Features
 
-- **Connection Methods**:
-  - Auto-discovery of Docker in WSL using `wsl` command
+- **Docker connection**
+  - Automatically discovers the WSL address using the `wsl` command
+  - Connects to the Docker daemon on TCP port 2375
+  - Reconnects without blocking the JavaFX interface when Docker or WSL is temporarily unavailable
 
-- **Container Management**:
-  - List all containers (running and stopped)
-  - Start, stop, restart containers
-  - Remove containers
-  - **Open Details**: View container logs in real-time (with ANSI color support) and control the container from a dedicated tab
-  - Attach to container console (basic support)
-  - Clickable port links for running containers
+- **Container management**
+  - Lists running and stopped containers, grouped by Docker Compose project
+  - Starts, stops, restarts, and removes individual containers or complete groups
+  - Preserves the selected container and expanded groups during refreshes and across application restarts
+  - Opens clickable port mappings in the default browser
+  - Shows live logs with ANSI color support and provides basic console attachment
+  - Shows live CPU, memory, network, and disk I/O statistics
+  - Displays the container configuration, mounted volumes, and running processes
 
-- **Settings & Customization**:
-  - **Configurable Shortcuts**: Customize keyboard shortcuts for all major actions via the Settings menu
-  - **Auto-Refresh**: Toggle and configure the interval for automatic container list refreshing
-  - **Auto-Update**: Automatically checks for new releases on startup
+- **Image management**
+  - Lists and groups Docker images
+  - Pulls images from Docker Hub
+  - Removes images
 
-- **Image Management**:
-  - List all Docker images
-  - Pull new images from Docker Hub
-  - Remove images
+- **Volume management**
+  - Lists volumes grouped by Docker Compose project, including the containers that use them
+  - Calculates volume sizes through WSL
+  - Opens volume paths in Windows Explorer
+  - Removes individual volumes and prunes unused volumes
 
-- **Volume Management**:
-  - List all volumes
-  - Remove volumes
+- **Network management**
+  - Lists Docker networks
+  - Removes networks
 
-- **Network Management**:
-  - List all networks
-  - Remove networks
+- **Settings and updates**
+  - Configures keyboard shortcuts for major actions
+  - Enables automatic container refresh and configures container and statistics refresh intervals
+  - Checks GitHub Releases for a newer application version at startup and on demand
 
 ## Requirements
 
-- **Runtime**: Java 21 or higher
-- **Build**: Maven 3.6 or higher
-- **MSI Build**: JDK 25 and [WiX Toolset v7+](https://wixtoolset.org/)
-- **Environment**: Docker running in WSL 2 (for Windows users)
-- **Configuration**: Docker daemon exposed on TCP port (typically 2375)
+- **Operating system**: Windows with WSL 2
+- **Docker**: Docker Engine running inside WSL 2
+- **Docker configuration**: Docker daemon exposed on TCP port 2375
+- **Standalone JAR runtime**: Java 21 or newer
+- **Build**: JDK 21 or newer and Maven 3.6.3 or newer
+- **MSI build**: JDK 25 and [WiX Toolset v7+](https://wixtoolset.org/)
+
+The Windows MSI includes a Java runtime, so Java does not need to be installed
+separately when using the installer.
 
 ## Building
 
-### Standard Build
+### Standard build
+
 ```bash
 mvn clean package
 ```
-Creates a shaded JAR in `target/`.
 
-### Standalone Release (Optimized)
+Creates the application JAR and
+`target/docker-wsl-manager-<version>-standalone.jar`.
+
+### Standalone release build
+
 ```bash
 mvn clean package -P release
 ```
-Creates `docker-wsl-manager-[version]-standalone.jar` with optimized manifest and merged service files.
 
-### Windows MSI Installer
-Requires JDK 25 and WiX 7. One-time WiX 7 EULA acceptance is required: `wix eula accept wix7`.
+Creates `target/docker-wsl-manager-<version>-standalone.jar` with the release
+manifest and merged service files.
 
-Execute the following in PowerShell (adjust paths as necessary):
+### Windows MSI installer
+
+MSI creation requires JDK 25 and WiX 7. Accept the WiX 7 EULA once with
+`wix eula accept wix7`, then run the build from PowerShell:
+
 ```powershell
 $env:JAVA_HOME = "C:\dev\Java\jdk-25.0.1-full"
-$env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH + ";C:\Program Files\WiX Toolset v7.0\bin"
+$env:PATH = "$env:JAVA_HOME\bin;$env:PATH;C:\Program Files\WiX Toolset v7.0\bin"
 mvn package -P msi -DskipTests
 ```
 
-The build verifies the generated app image and an administrative extraction of
-the MSI: `runtime/lib/modules` must exist, `runtime/bin/java.exe -version` must
-succeed, and `app/runtime` must not exist. Before publishing, also install the
-MSI on a clean Windows machine or VM, launch the Start Menu shortcut, and
-confirm that `C:\Program Files\DockerWSLManager\runtime\bin\java.exe -version`
-succeeds.
+The build verifies the generated application image and an administrative MSI
+extraction. Before publishing, install the MSI on a clean Windows machine or
+VM, launch the Start Menu shortcut, and confirm that
+`C:\Program Files\DockerWSLManager\runtime\bin\java.exe -version` succeeds.
 
 ## Running
 
-### Using the Standalone JAR
+Run the standalone JAR using Java 21 or newer:
+
 ```bash
 java -jar target/docker-wsl-manager-<version>-standalone.jar
 ```
 
-## Developer Guide
+Release ZIP archives include the standalone application as
+`docker-wsl-manager.jar` and a Windows `run.bat` launcher.
 
-### Preparing a New Release
-The complete release checklist is in [RELEASE_BUILD.md](RELEASE_BUILD.md). In brief:
+## Developer guide
 
-1. Update the version in `pom.xml` and write version-specific release notes.
-2. Build the verified standalone package:
+### Preparing a new release
+
+The complete checklist is in
+[RELEASE_BUILD.md](https://github.com/dvdmchl/docker-wsl-manager/blob/main/RELEASE_BUILD.md).
+In brief:
+
+1. Update the version in `pom.xml`, add version-specific release notes, and update `CHANGELOG.md`.
+2. Build the verified ZIP and optional MSI into a version-specific directory:
 
    ```powershell
-   .\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md"
+   .\build-release.ps1 `
+     -OutputDir ".\release-output\v<version>" `
+     -ReleaseNotesPath ".\release-notes\<version>.md" `
+     -BuildMsi
    ```
-   The script reads the version from `pom.xml`, runs tests, and writes all artifacts to the ignored `release-output/` directory.
-3. Build an MSI when required, using JDK 25 and WiX 7:
 
-   ```powershell
-   .\build-release.ps1 -ReleaseNotesPath ".\path\to\release-notes.md" -BuildMsi
-   ```
-4. Verify the artifacts, create and push tag `v<version>`, then create the GitHub Release and upload the ZIP and MSI.
+3. Generate and verify `SHA256SUMS.txt` for the ZIP and MSI.
+4. Verify the artifacts, create and push the annotated `v<version>` tag, then publish a GitHub Release containing the ZIP, MSI, and checksums.
 
-## Project Structure
+## Project structure
 
-```
+```text
 docker-wsl-manager/
 ├── src/
 │   ├── main/
-│   │   ├── java/
-│   │   │   └── org/dreamabout/sw/dockerwslmanager/
-│   │   │       ├── Main.java                     # Application entry point
-│   │   │       ├── MainController.java           # Main UI controller
-│   │   │       └── DockerConnectionManager.java  # Docker connection handler
-│   │   └── resources/
-│   │       ├── main.fxml                         # JavaFX layout
-│   │       └── shortcuts.properties              # Keyboard shortcuts
-│   └── test/
-├── conductor/                                    # Project documentation & tracks (Conductor)
-├── release-output/                                # Ignored release artifacts created by build-release.ps1
-├── pom.xml                                       # Maven configuration
-└── README.md                                     # This file
+│   │   ├── java/org/dreamabout/sw/dockerwslmanager/
+│   │   │   ├── logic/                    # Configuration, formatting, and volume logic
+│   │   │   ├── model/                    # JavaFX view models and persisted UI state
+│   │   │   ├── service/                  # Container statistics and volume usage services
+│   │   │   ├── Main.java                 # Application entry point
+│   │   │   ├── MainController.java       # Main UI controller
+│   │   │   └── DockerConnectionManager.java
+│   │   └── resources/                    # FXML, settings, shortcuts, and application icons
+│   └── test/                             # Unit tests
+├── doc/img/                              # README screenshots
+├── release-notes/                        # Version-specific release notes
+├── scripts/                              # Packaging verification scripts
+├── build-release.ps1                     # Reproducible release build
+├── CHANGELOG.md
+├── RELEASE_BUILD.md
+├── pom.xml
+└── README.md
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for
+details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please feel free to submit a pull request.
 
-### AI Agent Support
-This project provides repository instructions for Codex in [AGENTS.md](AGENTS.md).
+### AI agent support
+
+Repository-specific instructions for Codex are available in
+[AGENTS.md](https://github.com/dvdmchl/docker-wsl-manager/blob/main/AGENTS.md).
