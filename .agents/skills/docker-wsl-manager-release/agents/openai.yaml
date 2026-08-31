@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docker WSL Manager Release"
+  short_description: "Prepare and publish a verified project release"
+  default_prompt: "Use $docker-wsl-manager-release to prepare and tag the next Docker WSL Manager release."
