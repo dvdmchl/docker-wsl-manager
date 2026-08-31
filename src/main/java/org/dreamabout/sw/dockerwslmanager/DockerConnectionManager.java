@@ -17,8 +17,8 @@ import java.time.Duration;
 
 public class DockerConnectionManager {
     private static final Logger logger = LoggerFactory.getLogger(DockerConnectionManager.class);
-    private DockerClient dockerClient;
-    private String currentConnectionString;
+    private volatile DockerClient dockerClient;
+    private volatile String currentConnectionString;
 
     public DockerConnectionManager() {
         // Default constructor
@@ -122,7 +122,8 @@ public class DockerConnectionManager {
     /**
      * Connect with a specific Docker client configuration.
      */
-    private boolean connectWithConfig(DockerClientConfig config, String connectionString) {
+    private synchronized boolean connectWithConfig(DockerClientConfig config, String connectionString) {
+        DockerClient newClient = null;
         try {
             DockerHttpClient httpClient = new ApacheDockerHttpClient.Builder()
                     .dockerHost(config.getDockerHost())
@@ -133,18 +134,30 @@ public class DockerConnectionManager {
                     .responseTimeout(Duration.ofMinutes(5))
                     .build();
             
-            dockerClient = DockerClientBuilder.getInstance(config)
+            newClient = DockerClientBuilder.getInstance(config)
                     .withDockerHttpClient(httpClient)
                     .build();
             
             // Test connection by pinging
-            dockerClient.pingCmd().exec();
+            newClient.pingCmd().exec();
+
+            DockerClient previousClient = dockerClient;
+            dockerClient = newClient;
+            if (previousClient != null) {
+                closeClient(previousClient);
+            }
             
             currentConnectionString = connectionString;
             logger.info("Successfully connected to Docker");
             return true;
         } catch (Exception e) {
             logger.error("Failed to establish Docker connection", e);
+            if (newClient != null) {
+                closeClient(newClient);
+            }
+            if (dockerClient != null) {
+                closeClient(dockerClient);
+            }
             dockerClient = null;
             currentConnectionString = null;
             return false;
@@ -154,15 +167,31 @@ public class DockerConnectionManager {
     /**
      * Disconnect from Docker.
      */
-    public void disconnect() {
+    public synchronized void disconnect() {
         if (dockerClient != null) {
-            try {
-                dockerClient.close();
-            } catch (Exception e) {
-                logger.error("Error closing Docker client", e);
-            }
+            closeClient(dockerClient);
             dockerClient = null;
             currentConnectionString = null;
+        }
+    }
+
+    /**
+     * Disconnect only if the supplied client is still the active connection.
+     * This prevents a failed background request from closing a newer reconnect.
+     */
+    public synchronized boolean disconnectIfCurrent(DockerClient expectedClient) {
+        if (expectedClient == null || dockerClient != expectedClient) {
+            return false;
+        }
+        disconnect();
+        return true;
+    }
+
+    private void closeClient(DockerClient client) {
+        try {
+            client.close();
+        } catch (Exception e) {
+            logger.error("Error closing Docker client", e);
         }
     }
 

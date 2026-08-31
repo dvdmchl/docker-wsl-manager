@@ -1,5 +1,6 @@
 package org.dreamabout.sw.dockerwslmanager;
 
+import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectVolumeResponse;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.model.ContainerPort;
@@ -12,7 +13,6 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -66,6 +66,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class MainController {
@@ -96,6 +102,14 @@ public class MainController {
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
     private DockerConnectionManager connectionManager;
+    private final ExecutorService refreshExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "docker-refresh");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private final AtomicBoolean refreshInProgress = new AtomicBoolean();
+    private final AtomicBoolean connectionFailureReported = new AtomicBoolean();
+    private volatile boolean shuttingDown;
 
     // Map to track active stats labels by container ID for updates
     private final Map<String, ContainerStatsLabels> activeStatsLabels = new java.util.concurrent.ConcurrentHashMap<>();
@@ -677,7 +691,7 @@ public class MainController {
                 if (connectionManager.isConnected() && 
                     mainTabPane.getSelectionModel().getSelectedItem() != null &&
                     "Containers".equals(mainTabPane.getSelectionModel().getSelectedItem().getText())) {
-                    refreshContainers();
+                    refreshContainers(false);
                 }
             })
         );
@@ -850,23 +864,39 @@ public class MainController {
 
     @FXML
     private void handleConnectAuto() {
-        if (connectionManager.connectAutoDiscover()) {
-            updateConnectionStatus();
-            refreshAll();
-        } else {
-            showAlert(Alert.AlertType.ERROR, "Connection Failed",
-                    "Failed to auto-discover Docker in WSL. Make sure WSL is running and Docker is accessible.");
-        }
+        connectInBackground(false);
     }
 
     @FXML
     private void handleDisconnect() {
+        stopAllStreams();
         connectionManager.disconnect();
         containerStatsService = null;
         activeStatsLabels.clear();
-        activeStatsStreams.clear();
+        connectionFailureReported.set(false);
         updateConnectionStatus();
         clearAllTables();
+    }
+
+    public void shutdown() {
+        shuttingDown = true;
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+        }
+        refreshExecutor.shutdownNow();
+        stopAllStreams();
+        activeStatsLabels.clear();
+        containerStatsService = null;
+        connectionManager.disconnect();
+    }
+
+    private void stopAllStreams() {
+        for (String containerId : new ArrayList<>(activeLogStreams.keySet())) {
+            stopLogStream(containerId);
+        }
+        for (String containerId : new ArrayList<>(activeStatsStreams.keySet())) {
+            stopStatsStream(containerId);
+        }
     }
 
     private void stopStatsStream(String containerId) {
@@ -916,12 +946,6 @@ public class MainController {
         activeStatsLabels.put(containerId, new ContainerStatsLabels(cpuValue, ramValue, netValue, diskValue));
 
         java.io.Closeable stream = service.fetchStats(containerId, stats -> {
-            // Check if this is the active tab
-            Tab selected = mainTabPane.getSelectionModel().getSelectedItem();
-            if (selected == null || !containerId.equals(selected.getUserData())) {
-                return;
-            }
-
             ContainerStatsLabels labels = activeStatsLabels.get(containerId);
             if (labels != null) {
                 long now = System.currentTimeMillis();
@@ -930,13 +954,16 @@ public class MainController {
                 if (now - labels.lastUpdateTime >= intervalMs) {
                     labels.lastUpdateTime = now;
                     Platform.runLater(() -> {
-                        labels.cpuValue.setText(String.format("%.2f%%", stats.getCpuPercentage()));
-                        labels.ramValue.setText(FormatUtils.formatSize(stats.getMemoryUsage()) + " / " 
-                                + FormatUtils.formatSize(stats.getMemoryLimit()));
-                        labels.netValue.setText(FormatUtils.formatSize(stats.getNetworkReadBytes()) + " / " 
-                                + FormatUtils.formatSize(stats.getNetworkWriteBytes()));
-                        labels.diskValue.setText(FormatUtils.formatSize(stats.getDiskReadBytes()) + " / " 
-                                + FormatUtils.formatSize(stats.getDiskWriteBytes()));
+                        Tab selected = mainTabPane.getSelectionModel().getSelectedItem();
+                        if (selected != null && containerId.equals(selected.getUserData())) {
+                            labels.cpuValue.setText(String.format("%.2f%%", stats.getCpuPercentage()));
+                            labels.ramValue.setText(FormatUtils.formatSize(stats.getMemoryUsage()) + " / "
+                                    + FormatUtils.formatSize(stats.getMemoryLimit()));
+                            labels.netValue.setText(FormatUtils.formatSize(stats.getNetworkReadBytes()) + " / "
+                                    + FormatUtils.formatSize(stats.getNetworkWriteBytes()));
+                            labels.diskValue.setText(FormatUtils.formatSize(stats.getDiskReadBytes()) + " / "
+                                    + FormatUtils.formatSize(stats.getDiskWriteBytes()));
+                        }
                     });
                 }
             }
@@ -2279,12 +2306,31 @@ public class MainController {
         setButtonState(isRunning, startContainerButton, stopContainerButton, restartContainerButton);
     }
 
-    private void refreshContainers() {
-        if (!checkConnection()) {
-            return;
-        }
+    private record ContainerTreeState(String selectedId, String selectedGroup,
+                                      Map<String, Boolean> expandedGroups) {
+    }
 
-        // Preserve the current tree context because refresh replaces all TreeItems.
+    private record VolumeRefreshData(List<InspectVolumeResponse> volumes, List<Container> containers,
+                                     Set<String> danglingNames) {
+    }
+
+    private record AllRefreshData(List<Container> containers, List<Image> images,
+                                  VolumeRefreshData volumes, List<Network> networks) {
+    }
+
+    private void refreshContainers() {
+        refreshContainers(true);
+    }
+
+    private void refreshContainers(boolean reportFailure) {
+        ContainerTreeState treeState = captureContainerTreeState();
+        submitDockerRefresh("containers", client -> client.listContainersCmd()
+                        .withShowAll(true)
+                        .exec(),
+                containers -> renderContainers(containers, treeState), reportFailure);
+    }
+
+    private ContainerTreeState captureContainerTreeState() {
         TreeItem<ContainerViewItem> currentSelection = containersTable.getSelectionModel().getSelectedItem();
         String selectedId = null;
         String selectedGroup = null;
@@ -2308,234 +2354,243 @@ public class MainController {
             }
         }
 
-        try {
-            List<Container> containers = connectionManager.getDockerClient()
-                    .listContainersCmd()
-                    .withShowAll(true)
-                    .exec();
+        return new ContainerTreeState(selectedId, selectedGroup, expandedGroups);
+    }
 
-            // Group containers
-            Map<String, List<Container>> grouped = new TreeMap<>();
-            List<Container> ungrouped = new ArrayList<>();
+    private void renderContainers(List<Container> containers, ContainerTreeState treeState) {
+        Map<String, List<Container>> grouped = new TreeMap<>();
+        List<Container> ungrouped = new ArrayList<>();
 
-            for (Container c : containers) {
-                String project = null;
-                if (c.getLabels() != null) {
-                    project = c.getLabels().get("com.docker.compose.project");
-                }
-                
-                if (project != null && !project.isEmpty()) {
-                    grouped.computeIfAbsent(project, k -> new ArrayList<>()).add(c);
-                } else {
-                    ungrouped.add(c);
-                }
-            }
-            if (!ungrouped.isEmpty()) {
-                grouped.put(UNGROUPED_LABEL, ungrouped);
+        for (Container c : containers) {
+            String project = null;
+            if (c.getLabels() != null) {
+                project = c.getLabels().get("com.docker.compose.project");
             }
 
-            TreeItem<ContainerViewItem> root = new TreeItem<>(new ContainerViewItem("Root"));
-            root.setExpanded(true);
-
-            for (Map.Entry<String, List<Container>> entry : grouped.entrySet()) {
-                TreeItem<ContainerViewItem> groupItem = new TreeItem<>(new ContainerViewItem(entry.getKey()));
-                groupItem.setExpanded(expandedGroups.getOrDefault(entry.getKey(), true));
-                for (Container c : entry.getValue()) {
-                    groupItem.getChildren().add(new TreeItem<>(new ContainerViewItem(c, getContainerName(c))));
-                }
-                root.getChildren().add(groupItem);
+            if (project != null && !project.isEmpty()) {
+                grouped.computeIfAbsent(project, k -> new ArrayList<>()).add(c);
+            } else {
+                ungrouped.add(c);
             }
+        }
+        if (!ungrouped.isEmpty()) {
+            grouped.put(UNGROUPED_LABEL, ungrouped);
+        }
 
-            containersTable.setRoot(root);
-            
-            // Restore selection or default to first
-            boolean restored = false;
-            if (selectedId != null) {
-                for (TreeItem<ContainerViewItem> group : root.getChildren()) {
-                    for (TreeItem<ContainerViewItem> item : group.getChildren()) {
-                        if (!item.getValue().isGroup() && item.getValue().getContainer().getId().equals(selectedId)) {
-                            containersTable.getSelectionModel().select(item);
-                            restored = true;
-                            break;
-                        }
-                    }
-                    if (restored) {
-                        break;
-                    }
-                }
-            } else if (selectedGroup != null) {
-                for (TreeItem<ContainerViewItem> group : root.getChildren()) {
-                    if (selectedGroup.equals(group.getValue().getName())) {
-                        containersTable.getSelectionModel().select(group);
+        TreeItem<ContainerViewItem> root = new TreeItem<>(new ContainerViewItem("Root"));
+        root.setExpanded(true);
+
+        for (Map.Entry<String, List<Container>> entry : grouped.entrySet()) {
+            TreeItem<ContainerViewItem> groupItem = new TreeItem<>(new ContainerViewItem(entry.getKey()));
+            groupItem.setExpanded(treeState.expandedGroups().getOrDefault(entry.getKey(), true));
+            for (Container c : entry.getValue()) {
+                groupItem.getChildren().add(new TreeItem<>(new ContainerViewItem(c, getContainerName(c))));
+            }
+            root.getChildren().add(groupItem);
+        }
+
+        containersTable.setRoot(root);
+
+        boolean restored = false;
+        if (treeState.selectedId() != null) {
+            for (TreeItem<ContainerViewItem> group : root.getChildren()) {
+                for (TreeItem<ContainerViewItem> item : group.getChildren()) {
+                    if (!item.getValue().isGroup()
+                            && item.getValue().getContainer().getId().equals(treeState.selectedId())) {
+                        containersTable.getSelectionModel().select(item);
                         restored = true;
                         break;
                     }
                 }
+                if (restored) {
+                    break;
+                }
             }
+        } else if (treeState.selectedGroup() != null) {
+            for (TreeItem<ContainerViewItem> group : root.getChildren()) {
+                if (treeState.selectedGroup().equals(group.getValue().getName())) {
+                    containersTable.getSelectionModel().select(group);
+                    restored = true;
+                    break;
+                }
+            }
+        }
 
-            if (!restored && !root.getChildren().isEmpty()) {
-                containersTable.getSelectionModel().select(0);
-            }
-        } catch (RuntimeException e) {
-            logger.error("Failed to refresh containers", e);
-            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh containers: " + e.getMessage());
+        if (!restored && !root.getChildren().isEmpty()) {
+            containersTable.getSelectionModel().select(0);
         }
     }
 
     private void refreshImages() {
-        if (!checkConnection()) {
-            return;
+        submitDockerRefresh("images", client -> client.listImagesCmd().exec(),
+                this::renderImages, true);
+    }
+
+    private void renderImages(List<Image> images) {
+        Map<String, List<Image>> grouped = new TreeMap<>();
+        List<Image> ungrouped = new ArrayList<>();
+
+        for (Image img : images) {
+            String groupName = null;
+            if (img.getLabels() != null) {
+                groupName = img.getLabels().get("com.docker.compose.project");
+            }
+            if (groupName == null && img.getRepoTags() != null && img.getRepoTags().length > 0) {
+                String[] parts = img.getRepoTags()[0].split(":");
+                if (parts.length > 0 && !parts[0].isEmpty()) {
+                    groupName = parts[0];
+                }
+            }
+
+            if (groupName != null) {
+                grouped.computeIfAbsent(groupName, k -> new ArrayList<>()).add(img);
+            } else {
+                ungrouped.add(img);
+            }
+        }
+        if (!ungrouped.isEmpty()) {
+            grouped.put(UNGROUPED_LABEL, ungrouped);
         }
 
-        try {
-            List<Image> images = connectionManager.getDockerClient()
-                    .listImagesCmd()
-                    .exec();
+        TreeItem<ImageViewItem> root = new TreeItem<>(new ImageViewItem("Root"));
+        root.setExpanded(true);
 
-            // Group images
-            Map<String, List<Image>> grouped = new TreeMap<>();
-            List<Image> ungrouped = new ArrayList<>();
-
-            for (Image img : images) {
-                String groupName = null;
-                // Try compose project label first
-                if (img.getLabels() != null) {
-                    groupName = img.getLabels().get("com.docker.compose.project");
+        for (Map.Entry<String, List<Image>> entry : grouped.entrySet()) {
+            TreeItem<ImageViewItem> groupItem = new TreeItem<>(new ImageViewItem(entry.getKey()));
+            groupItem.setExpanded(true);
+            for (Image img : entry.getValue()) {
+                String tagName = "<none>";
+                if (img.getRepoTags() != null && img.getRepoTags().length > 0) {
+                    tagName = img.getRepoTags()[0];
                 }
-                // Fallback to repository name
-                if (groupName == null && img.getRepoTags() != null && img.getRepoTags().length > 0) {
-                    String[] parts = img.getRepoTags()[0].split(":");
-                    if (parts.length > 0 && !parts[0].isEmpty()) {
-                        groupName = parts[0];
-                    }
-                }
-
-                if (groupName != null) {
-                    grouped.computeIfAbsent(groupName, k -> new ArrayList<>()).add(img);
-                } else {
-                    ungrouped.add(img);
-                }
+                groupItem.getChildren().add(new TreeItem<>(new ImageViewItem(img, tagName)));
             }
-            if (!ungrouped.isEmpty()) {
-                grouped.put(UNGROUPED_LABEL, ungrouped);
-            }
-
-            TreeItem<ImageViewItem> root = new TreeItem<>(new ImageViewItem("Root"));
-            root.setExpanded(true);
-
-            for (Map.Entry<String, List<Image>> entry : grouped.entrySet()) {
-                TreeItem<ImageViewItem> groupItem = new TreeItem<>(new ImageViewItem(entry.getKey()));
-                groupItem.setExpanded(true);
-                for (Image img : entry.getValue()) {
-                    String tagName = "<none>";
-                    if (img.getRepoTags() != null && img.getRepoTags().length > 0) {
-                        // Use full repo:tag or just tag? Table shows repo and tag separately.
-                        // Name in tree can be repo:tag or just tag if grouped by repo.
-                        // Let's use repo:tag for clarity or just tag if parent is repo.
-                        // Since we grouped by repo, let's just show tag or full name if it was grouped by project.
-                        tagName = img.getRepoTags()[0];
-                    }
-                    groupItem.getChildren().add(new TreeItem<>(new ImageViewItem(img, tagName)));
-                }
-                root.getChildren().add(groupItem);
-            }
-
-            imagesTable.setRoot(root);
-        } catch (RuntimeException e) {
-            logger.error("Failed to refresh images", e);
-            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh images: " + e.getMessage());
+            root.getChildren().add(groupItem);
         }
+
+        imagesTable.setRoot(root);
     }
 
     private void refreshVolumes() {
-        if (!checkConnection()) {
-            return;
-        }
-
-        try {
-            List<InspectVolumeResponse> volumes = connectionManager.getDockerClient()
-                    .listVolumesCmd()
-                    .exec()
-                    .getVolumes();
-
-            List<Container> containers = connectionManager.getDockerClient()
-                    .listContainersCmd()
-                    .withShowAll(true)
-                    .exec();
-
-            Map<String, List<String>> volumeToContainers = volumeLogic.mapVolumesToContainers(containers);
-            Set<String> runningVolumeNames = volumeLogic.getRunningContainerVolumeNames(containers);
-            logger.info("Running container volume names: {}", runningVolumeNames);
-            Set<String> danglingNames = getDanglingVolumeNames();
-            Map<String, List<InspectVolumeResponse>> grouped = volumeLogic.groupVolumes(volumes);
-
-            TreeItem<VolumeViewItem> root = new TreeItem<>(new VolumeViewItem("Root"));
-            root.setExpanded(true);
-
-            for (Map.Entry<String, List<InspectVolumeResponse>> entry : grouped.entrySet()) {
-                TreeItem<VolumeViewItem> groupItem = new TreeItem<>(new VolumeViewItem(entry.getKey()));
-                groupItem.setExpanded(true);
-                for (InspectVolumeResponse vol : entry.getValue()) {
-                    boolean unused = danglingNames.contains(vol.getName());
-                    VolumeViewItem item = new VolumeViewItem(vol, vol.getName(), unused);
-                    
-                    List<String> containerNames = volumeToContainers.get(vol.getName());
-                    if (containerNames != null) {
-                        item.getContainerNames().setAll(containerNames);
-                    }
-                    
-                    item.setInUseByRunningContainer(runningVolumeNames.contains(vol.getName()));
-                    
-                    groupItem.getChildren().add(new TreeItem<>(item));
-                }
-                root.getChildren().add(groupItem);
-            }
-
-            volumesTable.setRoot(root);
-        } catch (RuntimeException e) {
-            logger.error("Failed to refresh volumes", e);
-            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh volumes: " + e.getMessage());
-        }
+        submitDockerRefresh("volumes", this::loadVolumes, this::renderVolumes, true);
     }
 
-    private Set<String> getDanglingVolumeNames() {
-        try {
-            List<InspectVolumeResponse> danglingVolumes = connectionManager.getDockerClient()
-                    .listVolumesCmd()
-                    .withFilter("dangling", Collections.singletonList("true"))
-                    .exec()
-                    .getVolumes();
+    private VolumeRefreshData loadVolumes(DockerClient client) {
+        List<InspectVolumeResponse> volumes = client.listVolumesCmd().exec().getVolumes();
+        List<Container> containers = client.listContainersCmd().withShowAll(true).exec();
+        Set<String> danglingNames = client.listVolumesCmd()
+                .withFilter("dangling", Collections.singletonList("true"))
+                .exec()
+                .getVolumes()
+                .stream()
+                .map(InspectVolumeResponse::getName)
+                .collect(Collectors.toSet());
+        return new VolumeRefreshData(volumes, containers, danglingNames);
+    }
 
-            return volumeLogic.extractVolumeNames(danglingVolumes);
-        } catch (Exception e) {
-            logger.warn("Failed to fetch dangling volumes", e);
+    private void renderVolumes(VolumeRefreshData data) {
+        Map<String, List<String>> volumeToContainers = volumeLogic.mapVolumesToContainers(data.containers());
+        Set<String> runningVolumeNames = volumeLogic.getRunningContainerVolumeNames(data.containers());
+        logger.info("Running container volume names: {}", runningVolumeNames);
+        Map<String, List<InspectVolumeResponse>> grouped = volumeLogic.groupVolumes(data.volumes());
+
+        TreeItem<VolumeViewItem> root = new TreeItem<>(new VolumeViewItem("Root"));
+        root.setExpanded(true);
+
+        for (Map.Entry<String, List<InspectVolumeResponse>> entry : grouped.entrySet()) {
+            TreeItem<VolumeViewItem> groupItem = new TreeItem<>(new VolumeViewItem(entry.getKey()));
+            groupItem.setExpanded(true);
+            for (InspectVolumeResponse vol : entry.getValue()) {
+                boolean unused = data.danglingNames().contains(vol.getName());
+                VolumeViewItem item = new VolumeViewItem(vol, vol.getName(), unused);
+
+                List<String> containerNames = volumeToContainers.get(vol.getName());
+                if (containerNames != null) {
+                    item.getContainerNames().setAll(containerNames);
+                }
+
+                item.setInUseByRunningContainer(runningVolumeNames.contains(vol.getName()));
+                groupItem.getChildren().add(new TreeItem<>(item));
+            }
+            root.getChildren().add(groupItem);
         }
-        return Collections.emptySet();
+
+        volumesTable.setRoot(root);
     }
 
     private void refreshNetworks() {
-        if (!checkConnection()) {
-            return;
-        }
-
-        try {
-            List<Network> networks = connectionManager.getDockerClient()
-                    .listNetworksCmd()
-                    .exec();
-
-            ObservableList<Network> networkList = FXCollections.observableArrayList(networks);
-            networksTable.setItems(networkList);
-        } catch (Exception e) {
-            logger.error("Failed to refresh networks", e);
-            showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to refresh networks: " + e.getMessage());
-        }
+        submitDockerRefresh("networks", client -> client.listNetworksCmd().exec(),
+                networks -> networksTable.setItems(FXCollections.observableArrayList(networks)), true);
     }
 
     private void refreshAll() {
-        refreshContainers();
-        refreshImages();
-        refreshVolumes();
-        refreshNetworks();
+        ContainerTreeState treeState = captureContainerTreeState();
+        submitDockerRefresh("all data", client -> {
+            List<Container> containers = client.listContainersCmd().withShowAll(true).exec();
+            List<Image> images = client.listImagesCmd().exec();
+            VolumeRefreshData volumes = loadVolumes(client);
+            List<Network> networks = client.listNetworksCmd().exec();
+            return new AllRefreshData(containers, images, volumes, networks);
+        }, data -> {
+            renderContainers(data.containers(), treeState);
+            renderImages(data.images());
+            renderVolumes(data.volumes());
+            networksTable.setItems(FXCollections.observableArrayList(data.networks()));
+        }, true);
+    }
+
+    private <T> void submitDockerRefresh(String operation, Function<DockerClient, T> loader,
+                                         Consumer<T> renderer, boolean reportFailure) {
+        if (!checkConnection() || shuttingDown || !refreshInProgress.compareAndSet(false, true)) {
+            return;
+        }
+
+        DockerClient client = connectionManager.getDockerClient();
+        try {
+            refreshExecutor.execute(() -> {
+                try {
+                    T result = loader.apply(client);
+                    Platform.runLater(() -> {
+                        refreshInProgress.set(false);
+                        if (!shuttingDown && connectionManager.getDockerClient() == client) {
+                            connectionFailureReported.set(false);
+                            renderer.accept(result);
+                        }
+                    });
+                } catch (RuntimeException e) {
+                    boolean invalidated = connectionManager.disconnectIfCurrent(client);
+                    if (!shuttingDown && invalidated) {
+                        Platform.runLater(() -> handleRefreshFailure(operation, e, invalidated, reportFailure));
+                    } else {
+                        refreshInProgress.set(false);
+                    }
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            refreshInProgress.set(false);
+            if (!shuttingDown) {
+                throw e;
+            }
+        }
+    }
+
+    private void handleRefreshFailure(String operation, RuntimeException error,
+                                      boolean invalidated, boolean reportFailure) {
+        refreshInProgress.set(false);
+        if (shuttingDown) {
+            return;
+        }
+
+        logger.error("Failed to refresh {}", operation, error);
+        if (invalidated) {
+            stopAllStreams();
+            containerStatsService = null;
+            updateConnectionStatus();
+        }
+        if (reportFailure && connectionFailureReported.compareAndSet(false, true)) {
+            showAlert(Alert.AlertType.ERROR, "Docker Connection Lost",
+                    "The Docker connection was interrupted. Reconnect to continue.");
+        }
     }
 
     private void clearAllTables() {
@@ -2670,30 +2725,49 @@ public class MainController {
     }
 
     private void autoConnectOnStartup() {
-        // Try auto-discover connection in background
-        new Thread(() -> {
-            logger.info("Attempting auto-connect on startup...");
-            
-            if (connectionManager.connectAutoDiscover()) {
+        connectInBackground(true);
+    }
+
+    private void connectInBackground(boolean startup) {
+        if (shuttingDown || !refreshInProgress.compareAndSet(false, true)) {
+            return;
+        }
+        connectAutoButton.setDisable(true);
+
+        try {
+            refreshExecutor.execute(() -> {
+                logger.info("Attempting auto-connect to Docker...");
+                boolean connected = connectionManager.connectAutoDiscover();
+                if (shuttingDown) {
+                    refreshInProgress.set(false);
+                    return;
+                }
                 Platform.runLater(() -> {
+                    refreshInProgress.set(false);
+                    connectionFailureReported.set(false);
                     updateConnectionStatus();
-                    refreshAll();
-                    logger.info("Auto-connected to Docker successfully");
+                    if (connected) {
+                        refreshAll();
+                        logger.info("Auto-connected to Docker successfully");
+                    } else {
+                        showAlert(Alert.AlertType.ERROR, "Docker Connection Failed",
+                                "Could not automatically connect to Docker in WSL.\n\n"
+                                + "Please ensure:\n"
+                                + "- WSL is running\n"
+                                + "- Docker is installed and running in WSL\n"
+                                + "- Docker daemon is listening on port 2375\n\n"
+                                + (startup ? "You can use the 'Connect / Reconnect' button to retry."
+                                : "Try reconnecting after Docker and WSL are available."));
+                        logger.warn("Failed to auto-connect to Docker");
+                    }
                 });
-            } else {
-                Platform.runLater(() -> {
-                    updateConnectionStatus();
-                    showAlert(Alert.AlertType.ERROR, "Docker Connection Failed",
-                            "Could not automatically connect to Docker in WSL.\n\n" 
-                            + "Please ensure:\n" 
-                            + "- WSL is running\n" 
-                            + "- Docker is installed and running in WSL\n" 
-                            + "- Docker daemon is listening on port 2375\n\n" 
-                            + "You can use the 'Connect / Reconnect' button to retry.");
-                    logger.warn("Failed to auto-connect to Docker on startup");
-                });
+            });
+        } catch (RejectedExecutionException e) {
+            refreshInProgress.set(false);
+            if (!shuttingDown) {
+                throw e;
             }
-        }).start();
+        }
     }
 
     /**

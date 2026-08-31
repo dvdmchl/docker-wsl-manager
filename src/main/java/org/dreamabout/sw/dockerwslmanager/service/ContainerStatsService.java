@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -40,9 +39,10 @@ public class ContainerStatsService {
     public Closeable fetchStats(String containerId, Consumer<ContainerStats> onStatsReceived, 
                                 Runnable onComplete, Consumer<Throwable> onError) {
         logger.info("Starting stats stream for container: {}", containerId);
-        return dockerClient.statsCmd(containerId).exec(new ResultCallback<Statistics>() {
+        return dockerClient.statsCmd(containerId).exec(new ResultCallback.Adapter<Statistics>() {
             @Override
             public void onStart(Closeable closeable) {
+                super.onStart(closeable);
                 logger.debug("Stats stream started for {}", containerId);
             }
 
@@ -60,6 +60,7 @@ public class ContainerStatsService {
 
             @Override
             public void onError(Throwable throwable) {
+                super.onError(throwable);
                 logger.error("Error in stats stream for container: {}", containerId, throwable);
                 if (onError != null) {
                     onError.accept(throwable);
@@ -68,15 +69,11 @@ public class ContainerStatsService {
 
             @Override
             public void onComplete() {
+                super.onComplete();
                 logger.info("Stats stream completed for container: {}", containerId);
                 if (onComplete != null) {
                     onComplete.run();
                 }
-            }
-
-            @Override
-            public void close() throws IOException {
-                logger.debug("Closing stats stream for {}", containerId);
             }
         });
     }

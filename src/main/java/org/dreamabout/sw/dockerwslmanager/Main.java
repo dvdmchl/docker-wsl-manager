@@ -11,12 +11,14 @@ import org.slf4j.LoggerFactory;
 
 public class Main extends Application {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
+    private MainController controller;
 
     @Override
     public void start(Stage primaryStage) {
         try {
             FXMLLoader loader = new FXMLLoader(Main.class.getResource("/main.fxml"));
             Parent root = loader.load();
+            controller = loader.getController();
 
             Scene scene = new Scene(root, 1200, 800);
 
@@ -32,6 +34,9 @@ public class Main extends Application {
 
     @Override
     public void stop() throws Exception {
+        if (controller != null) {
+            controller.shutdown();
+        }
         super.stop();
         logger.info("Application stopping");
     }
