@@ -326,7 +326,7 @@
                         <version>3.5.0</version>
                         <executions>
                             <execution>
-                                <id>clean-runtime</id>
+                                <id>clean-jpackage-directories</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>exec</goal>
@@ -335,7 +335,21 @@
                                     <executable>powershell</executable>
                                     <arguments>
                                         <argument>-Command</argument>
-                                        <argument>if (Test-Path ${project.build.directory}/runtime) { Remove-Item -Path ${project.build.directory}/runtime -Recurse -Force }</argument>
+                                        <argument>$paths = @('${project.build.directory}/runtime', '${project.build.directory}/jpackage-input', '${project.build.directory}/jpackage-app-image', '${project.build.directory}/installer'); foreach ($path in $paths) { if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force } }</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>prepare-jpackage-input</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell</executable>
+                                    <arguments>
+                                        <argument>-Command</argument>
+                                        <argument>New-Item -ItemType Directory -Path '${project.build.directory}/jpackage-input' -Force | Out-Null; Copy-Item -LiteralPath '${project.build.directory}/docker-wsl-manager-${project.version}-standalone.jar' -Destination '${project.build.directory}/jpackage-input/docker-wsl-manager-${project.version}-standalone.jar' -Force</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -363,7 +377,56 @@
                                 </configuration>
                             </execution>
                             <execution>
-                                <id>jpackage</id>
+                                <id>jpackage-app-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${java.home}\bin\jpackage.exe</executable>
+                                    <arguments>
+                                        <argument>--type</argument>
+                                        <argument>app-image</argument>
+                                        <argument>--dest</argument>
+                                        <argument>${project.build.directory}/jpackage-app-image</argument>
+                                        <argument>--input</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
+                                        <argument>--main-jar</argument>
+                                        <argument>docker-wsl-manager-${project.version}-standalone.jar</argument>
+                                        <argument>--main-class</argument>
+                                        <argument>org.dreamabout.sw.dockerwslmanager.Main</argument>
+                                        <argument>--name</argument>
+                                        <argument>DockerWSLManager</argument>
+                                        <argument>--icon</argument>
+                                        <argument>src/main/resources/app_icon.ico</argument>
+                                        <argument>--runtime-image</argument>
+                                        <argument>${project.build.directory}/runtime</argument>
+                                        <argument>--vendor</argument>
+                                        <argument>DreamAbout Software</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>verify-jpackage-app-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell</executable>
+                                    <arguments>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>Bypass</argument>
+                                        <argument>-File</argument>
+                                        <argument>${project.basedir}/scripts/Verify-MsiPackage.ps1</argument>
+                                        <argument>-AppImagePath</argument>
+                                        <argument>${project.build.directory}/jpackage-app-image/DockerWSLManager</argument>
+                                        <argument>-SkipMsiExtraction</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>jpackage-msi</id>
                                 <phase>package</phase>
                                 <goals>
                                     <goal>exec</goal>
@@ -376,7 +439,7 @@
                                         <argument>--dest</argument>
                                         <argument>${project.build.directory}/installer</argument>
                                         <argument>--input</argument>
-                                        <argument>${project.build.directory}</argument>
+                                        <argument>${project.build.directory}/jpackage-input</argument>
                                         <argument>--main-jar</argument>
                                         <argument>docker-wsl-manager-${project.version}-standalone.jar</argument>
                                         <argument>--main-class</argument>
@@ -398,6 +461,26 @@
                                         <argument>--win-dir-chooser</argument>
                                         <argument>--win-upgrade-uuid</argument>
                                         <argument>6f019ae0-c2e8-3f49-ba1a-57f4947fa326</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>verify-msi-package</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell</executable>
+                                    <arguments>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>Bypass</argument>
+                                        <argument>-File</argument>
+                                        <argument>${project.basedir}/scripts/Verify-MsiPackage.ps1</argument>
+                                        <argument>-AppImagePath</argument>
+                                        <argument>${project.build.directory}/jpackage-app-image/DockerWSLManager</argument>
+                                        <argument>-MsiPath</argument>
+                                        <argument>${project.build.directory}/installer/DockerWSLManager-${project.version}.msi</argument>
                                     </arguments>
                                 </configuration>
                             </execution>

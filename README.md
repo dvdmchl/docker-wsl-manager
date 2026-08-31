@@ -68,6 +68,13 @@ $env:PATH = "$env:JAVA_HOME\bin;" + $env:PATH + ";C:\Program Files\WiX Toolset v
 mvn package -P msi -DskipTests
 ```
 
+The build verifies the generated app image and an administrative extraction of
+the MSI: `runtime/lib/modules` must exist, `runtime/bin/java.exe -version` must
+succeed, and `app/runtime` must not exist. Before publishing, also install the
+MSI on a clean Windows machine or VM, launch the Start Menu shortcut, and
+confirm that `C:\Program Files\DockerWSLManager\runtime\bin\java.exe -version`
+succeeds.
+
 ## Running
 
 ### Using the Standalone JAR
