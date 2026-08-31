@@ -90,7 +90,7 @@ if ($BuildMsi) {
     if ($null -eq $msi) {
         throw "MSI was not created in target\installer within five minutes. Verify that JDK 25 and WiX Toolset v7+ are configured."
     }
-    Copy-Item -LiteralPath $msi.FullName -Destination $packageDirectory
+    Copy-Item -LiteralPath $msi.FullName -Destination $OutputDir
 } else {
     Write-Host "[4/5] Skipping MSI build (use -BuildMsi to include it)." -ForegroundColor Yellow
 }
