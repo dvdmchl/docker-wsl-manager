@@ -1,5 +1,8 @@
 package org.dreamabout.sw.dockerwslmanager;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dreamabout.sw.dockerwslmanager.model.ContainerTreeState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,14 +13,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 public final class SettingsManager {
     private static final Logger logger = LoggerFactory.getLogger(SettingsManager.class);
+    private static final String CONTAINER_TREE_STATE_KEY = "containers.tree.state";
     private final Properties settings = new Properties();
-    private static final String CONFIG_FILE_PATH = System.getProperty("user.home") + "/.docker-wsl-manager/settings.properties";
+    private final Path configFilePath;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SettingsManager() {
+        this(Path.of(System.getProperty("user.home"), ".docker-wsl-manager", "settings.properties"));
+    }
+
+    SettingsManager(Path configFilePath) {
+        this.configFilePath = configFilePath;
         loadSettings();
     }
 
@@ -27,16 +38,16 @@ public final class SettingsManager {
             if (input != null) {
                 settings.load(input);
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             logger.error("Failed to load default settings", e);
         }
 
         // Load user overrides
-        File userConfig = new File(CONFIG_FILE_PATH);
+        File userConfig = configFilePath.toFile();
         if (userConfig.exists()) {
             try (InputStream input = new FileInputStream(userConfig)) {
                 settings.load(input);
-            } catch (IOException e) {
+            } catch (IOException | RuntimeException e) {
                 logger.error("Failed to load user settings", e);
             }
         }
@@ -76,8 +87,32 @@ public final class SettingsManager {
         settings.setProperty("wsl.distro", distro);
     }
 
+    public ContainerTreeState getContainerTreeState() {
+        String json = settings.getProperty(CONTAINER_TREE_STATE_KEY);
+        if (json == null || json.isBlank()) {
+            return ContainerTreeState.empty();
+        }
+
+        try {
+            return objectMapper.readValue(json, ContainerTreeState.class);
+        } catch (JsonProcessingException | RuntimeException e) {
+            logger.warn("Ignoring malformed persisted Containers tree state", e);
+            settings.remove(CONTAINER_TREE_STATE_KEY);
+            return ContainerTreeState.empty();
+        }
+    }
+
+    public void setContainerTreeState(ContainerTreeState treeState) {
+        try {
+            settings.setProperty(CONTAINER_TREE_STATE_KEY, objectMapper.writeValueAsString(treeState));
+        } catch (JsonProcessingException | RuntimeException e) {
+            logger.warn("Failed to serialize Containers tree state", e);
+            settings.remove(CONTAINER_TREE_STATE_KEY);
+        }
+    }
+
     public void saveSettings() throws IOException {
-        File userConfig = new File(CONFIG_FILE_PATH);
+        File userConfig = configFilePath.toFile();
         File parent = userConfig.getParentFile();
         if (parent != null && !parent.exists()) {
             Files.createDirectories(parent.toPath());

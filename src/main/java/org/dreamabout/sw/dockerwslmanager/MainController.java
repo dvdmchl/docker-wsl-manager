@@ -44,6 +44,7 @@ import org.dreamabout.sw.dockerwslmanager.logic.TextFlowSelectionHandler;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumeLogic;
 import org.dreamabout.sw.dockerwslmanager.logic.VolumePathResolver;
 import org.dreamabout.sw.dockerwslmanager.logic.ConfigLogic;
+import org.dreamabout.sw.dockerwslmanager.model.ContainerTreeState;
 import org.dreamabout.sw.dockerwslmanager.model.ContainerViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.ImageViewItem;
 import org.dreamabout.sw.dockerwslmanager.model.VolumeViewItem;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.Desktop;
 import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,6 +103,7 @@ public class MainController {
 
     private final ShortcutManager shortcutManager = new ShortcutManager();
     private final SettingsManager settingsManager = new SettingsManager();
+    private ContainerTreeState lastContainerTreeState = settingsManager.getContainerTreeState();
     private DockerConnectionManager connectionManager;
     private final ExecutorService refreshExecutor = Executors.newSingleThreadExecutor(runnable -> {
         Thread thread = new Thread(runnable, "docker-refresh");
@@ -880,6 +883,13 @@ public class MainController {
 
     public void shutdown() {
         shuttingDown = true;
+        lastContainerTreeState = captureContainerTreeState();
+        settingsManager.setContainerTreeState(lastContainerTreeState);
+        try {
+            settingsManager.saveSettings();
+        } catch (IOException | RuntimeException e) {
+            logger.error("Failed to persist Containers tree state during shutdown", e);
+        }
         if (autoRefreshTimeline != null) {
             autoRefreshTimeline.stop();
         }
@@ -2306,10 +2316,6 @@ public class MainController {
         setButtonState(isRunning, startContainerButton, stopContainerButton, restartContainerButton);
     }
 
-    private record ContainerTreeState(String selectedId, String selectedGroup,
-                                      Map<String, Boolean> expandedGroups) {
-    }
-
     private record VolumeRefreshData(List<InspectVolumeResponse> volumes, List<Container> containers,
                                      Set<String> danglingNames) {
     }
@@ -2331,6 +2337,10 @@ public class MainController {
     }
 
     private ContainerTreeState captureContainerTreeState() {
+        if (containersTable == null || containersTable.getRoot() == null) {
+            return lastContainerTreeState;
+        }
+
         TreeItem<ContainerViewItem> currentSelection = containersTable.getSelectionModel().getSelectedItem();
         String selectedId = null;
         String selectedGroup = null;
@@ -2340,21 +2350,24 @@ public class MainController {
                 selectedGroup = selectedValue.getName();
             } else {
                 selectedId = selectedValue.getContainer().getId();
+                TreeItem<ContainerViewItem> parent = currentSelection.getParent();
+                if (parent != null && parent.getValue() != null) {
+                    selectedGroup = parent.getValue().getName();
+                }
             }
         }
 
         Map<String, Boolean> expandedGroups = new TreeMap<>();
         TreeItem<ContainerViewItem> currentRoot = containersTable.getRoot();
-        if (currentRoot != null) {
-            for (TreeItem<ContainerViewItem> group : currentRoot.getChildren()) {
-                ContainerViewItem groupValue = group.getValue();
-                if (groupValue != null && groupValue.isGroup()) {
-                    expandedGroups.put(groupValue.getName(), group.isExpanded());
-                }
+        for (TreeItem<ContainerViewItem> group : currentRoot.getChildren()) {
+            ContainerViewItem groupValue = group.getValue();
+            if (groupValue != null && groupValue.isGroup()) {
+                expandedGroups.put(groupValue.getName(), group.isExpanded());
             }
         }
 
-        return new ContainerTreeState(selectedId, selectedGroup, expandedGroups);
+        lastContainerTreeState = new ContainerTreeState(selectedId, selectedGroup, expandedGroups);
+        return lastContainerTreeState;
     }
 
     private void renderContainers(List<Container> containers, ContainerTreeState treeState) {
@@ -2377,6 +2390,13 @@ public class MainController {
             grouped.put(UNGROUPED_LABEL, ungrouped);
         }
 
+        Map<String, Set<String>> currentGroups = new TreeMap<>();
+        grouped.forEach((group, groupContainers) -> currentGroups.put(group, groupContainers.stream()
+                .map(Container::getId)
+                .collect(Collectors.toSet())));
+        treeState = treeState.reconcile(currentGroups);
+        lastContainerTreeState = treeState;
+
         TreeItem<ContainerViewItem> root = new TreeItem<>(new ContainerViewItem("Root"));
         root.setExpanded(true);
 
@@ -2392,11 +2412,11 @@ public class MainController {
         containersTable.setRoot(root);
 
         boolean restored = false;
-        if (treeState.selectedId() != null) {
+        if (treeState.selectedContainerId() != null) {
             for (TreeItem<ContainerViewItem> group : root.getChildren()) {
                 for (TreeItem<ContainerViewItem> item : group.getChildren()) {
                     if (!item.getValue().isGroup()
-                            && item.getValue().getContainer().getId().equals(treeState.selectedId())) {
+                            && item.getValue().getContainer().getId().equals(treeState.selectedContainerId())) {
                         containersTable.getSelectionModel().select(item);
                         restored = true;
                         break;
@@ -2416,9 +2436,6 @@ public class MainController {
             }
         }
 
-        if (!restored && !root.getChildren().isEmpty()) {
-            containersTable.getSelectionModel().select(0);
-        }
     }
 
     private void refreshImages() {
