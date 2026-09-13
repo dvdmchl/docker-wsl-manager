@@ -2,6 +2,10 @@
 
 This document is the authoritative release procedure for Docker WSL Manager.
 
+For Docker connection security, see [DOCKER_WSL_SECURITY.md](DOCKER_WSL_SECURITY.md).
+For Microsoft Store MSIX builds, identity, validation, listing, and Partner
+Center instructions, see [MS_STORE_PUBLISHING.md](MS_STORE_PUBLISHING.md).
+
 ## Prerequisites
 
 - The Git working tree is clean except for the intended release changes.
@@ -38,6 +42,7 @@ The ZIP contains:
 - `docker-wsl-manager.jar` — standalone JavaFX application;
 - `run.bat` — launcher for Java 21+;
 - `README.md`, `LICENSE`, and `RELEASE_NOTES.md`.
+- `PRIVACY.md` and `THIRD_PARTY_NOTICES.txt`.
 
 For a Windows MSI, start PowerShell with JDK 25 and WiX 7 on `PATH`, then add
 `-BuildMsi`:

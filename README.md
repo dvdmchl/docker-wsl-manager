@@ -10,8 +10,11 @@ daemon over TCP/IP.
 ## Features
 
 - **Docker connection**
-  - Automatically discovers the WSL address using the `wsl` command
-  - Connects to the Docker daemon on TCP port 2375
+  - Verifies Docker CLI inside the selected WSL distribution
+  - Automatically discovers the WSL address for compatibility with existing installations
+  - Offers Windows localhost and authenticated Docker TLS modes
+  - Warns when using unencrypted compatibility mode and links to secure setup guidance
+  - Supports authenticated Docker TLS for advanced configurations
   - Reconnects without blocking the JavaFX interface when Docker or WSL is temporarily unavailable
 
 - **Container management**
@@ -47,13 +50,20 @@ daemon over TCP/IP.
 
 - **Operating system**: Windows with WSL 2
 - **Docker**: Docker Engine running inside WSL 2
-- **Docker configuration**: Docker daemon exposed on TCP port 2375
+- **Docker configuration**: Docker daemon reachable through WSL TCP compatibility
+  mode, Windows localhost forwarding, or authenticated TLS
 - **Standalone JAR runtime**: Java 21 or newer
 - **Build**: JDK 21 or newer and Maven 3.6.3 or newer
 - **MSI build**: JDK 25 and [WiX Toolset v7+](https://wixtoolset.org/)
 
 The Windows MSI includes a Java runtime, so Java does not need to be installed
 separately when using the installer.
+
+Existing installations can continue using an automatically discovered WSL address
+on port `2375`. This unencrypted compatibility mode grants full Docker control to
+any client that can reach the port, so the application displays a warning. Prefer
+Windows localhost forwarding or authenticated TLS where available. See
+[DOCKER_WSL_SECURITY.md](DOCKER_WSL_SECURITY.md).
 
 ## Building
 
@@ -108,6 +118,8 @@ Release ZIP archives include the standalone application as
 
 The complete checklist is in
 [RELEASE_BUILD.md](https://github.com/dvdmchl/docker-wsl-manager/blob/main/RELEASE_BUILD.md).
+Microsoft Store MSIX packaging and publication are documented in
+[MS_STORE_PUBLISHING.md](MS_STORE_PUBLISHING.md).
 In brief:
 
 1. Update the version in `pom.xml`, add version-specific release notes, and update `CHANGELOG.md`.
@@ -150,8 +162,11 @@ docker-wsl-manager/
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for
+This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for
 details.
+
+The [privacy policy](PRIVACY.md) documents local data, Docker operations, and
+network communication. Release packages include generated third-party notices.
 
 ## Contributing
 

@@ -48,4 +48,53 @@ class SettingsManagerTest {
 
         assertEquals(ContainerTreeState.empty(), settingsManager.getContainerTreeState());
     }
+
+    @Test
+    void connectionDefaultsPreserveWslCompatibility() throws Exception {
+        Path configFile = Files.createTempDirectory("docker-wsl-manager-connection")
+                .resolve("settings.properties");
+
+        SettingsManager settingsManager = new SettingsManager(configFile);
+
+        assertEquals(2375, settingsManager.getDockerPort());
+        assertEquals(DockerConnectionMode.WSL_IP, settingsManager.getDockerConnectionMode());
+        assertEquals("", settingsManager.getDockerTlsHost());
+        assertEquals("", settingsManager.getDockerCertPath());
+    }
+
+    @Test
+    void migratesLegacyTlsSetting() throws Exception {
+        Path configFile = Files.createTempFile("docker-wsl-manager-tls", ".properties");
+        Files.writeString(configFile, "docker.tls.enabled=true\n");
+
+        SettingsManager settingsManager = new SettingsManager(configFile);
+
+        assertEquals(DockerConnectionMode.TLS, settingsManager.getDockerConnectionMode());
+    }
+
+    @Test
+    void savesExplicitConnectionMode() throws Exception {
+        Path configFile = Files.createTempDirectory("docker-wsl-manager-mode")
+                .resolve("settings.properties");
+        SettingsManager writer = new SettingsManager(configFile);
+
+        writer.setDockerConnectionMode(DockerConnectionMode.LOOPBACK);
+        writer.saveSettings();
+
+        SettingsManager reader = new SettingsManager(configFile);
+        assertEquals(DockerConnectionMode.LOOPBACK, reader.getDockerConnectionMode());
+    }
+
+    @Test
+    void persistsCompatibilityWarningPreference() throws Exception {
+        Path configFile = Files.createTempDirectory("docker-wsl-manager-warning")
+                .resolve("settings.properties");
+        SettingsManager writer = new SettingsManager(configFile);
+
+        writer.setDockerSecurityWarningDismissed(true);
+        writer.saveSettings();
+
+        SettingsManager reader = new SettingsManager(configFile);
+        org.junit.jupiter.api.Assertions.assertTrue(reader.isDockerSecurityWarningDismissed());
+    }
 }

@@ -68,6 +68,9 @@ Copy-Item -LiteralPath $standaloneJar -Destination (Join-Path $packageDirectory 
 Copy-Item -LiteralPath "run.bat" -Destination $packageDirectory
 Copy-Item -LiteralPath "README.md" -Destination $packageDirectory
 Copy-Item -LiteralPath "LICENSE" -Destination $packageDirectory
+Copy-Item -LiteralPath "target\classes\META-INF\THIRD-PARTY.txt" `
+    -Destination (Join-Path $packageDirectory "THIRD_PARTY_NOTICES.txt")
+Copy-Item -LiteralPath "PRIVACY.md" -Destination $packageDirectory
 Copy-Item -LiteralPath $releaseNotes -Destination (Join-Path $packageDirectory "RELEASE_NOTES.md")
 
 if ($BuildMsi) {

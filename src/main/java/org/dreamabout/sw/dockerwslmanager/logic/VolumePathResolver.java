@@ -1,5 +1,6 @@
 package org.dreamabout.sw.dockerwslmanager.logic;
 
+import org.dreamabout.sw.dockerwslmanager.WslCommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,21 +25,21 @@ public class VolumePathResolver {
 
     private String detectDefaultDistro() {
         try {
-            Process process = new ProcessBuilder("wsl", "--list", "--quiet").start();
+            Process process = WslCommandLine.processBuilder(
+                    "auto-detect", "sh", "-lc", "printf '%s' \"$WSL_DISTRO_NAME\"").start();
             try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_16LE))) {
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line = reader.readLine();
                 if (line != null && !line.isEmpty()) {
-                    // The first line of wsl -l -q is the default distro
                     String distro = line.trim();
                     logger.info("Auto-detected default WSL distro: {}", distro);
                     return distro;
                 }
             }
         } catch (Exception e) {
-            logger.warn("Failed to auto-detect WSL distro, falling back to docker-desktop-data", e);
+            logger.warn("Failed to auto-detect the default WSL distribution", e);
         }
-        return "docker-desktop-data";
+        return null;
     }
 
     /**
@@ -46,7 +47,7 @@ public class VolumePathResolver {
      * Pattern: {@code \\\\wsl.localhost\\distro\\var\\lib\\docker\\volumes\\name\\_data}
      */
     public Optional<String> resolveNamedVolumePath(String volumeName) {
-        if (volumeName == null || volumeName.isEmpty()) {
+        if (volumeName == null || volumeName.isEmpty() || wslDistro == null) {
             return Optional.empty();
         }
         
@@ -82,6 +83,9 @@ public class VolumePathResolver {
         }
 
         // Otherwise assume it's a Linux internal path and bridge via network
+        if (wslDistro == null) {
+            return Optional.empty();
+        }
         String path = "\\\\wsl.localhost\\" + wslDistro + sourcePath.replace('/', '\\');
         
         logger.debug("Resolved bind mount '{}' to path: {}", sourcePath, path);

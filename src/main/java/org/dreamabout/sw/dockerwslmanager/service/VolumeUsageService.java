@@ -2,6 +2,8 @@ package org.dreamabout.sw.dockerwslmanager.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dreamabout.sw.dockerwslmanager.WslCommandLine;
+import org.dreamabout.sw.dockerwslmanager.WslDockerCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +22,17 @@ public class VolumeUsageService {
      * Fetches volume sizes using 'wsl docker system df -v --format "{{json .}}"'.
      * Returns a map of volume name to size in bytes.
      */
-    public Map<String, Long> fetchVolumeSizes() {
+    public Map<String, Long> fetchVolumeSizes(String distribution, boolean tlsEnabled,
+                                              String host, int port, String certificatePath) {
         Map<String, Long> volumeSizes = new HashMap<>();
         try {
-            logger.info("Executing 'wsl docker system df' to fetch volume sizes...");
-            ProcessBuilder pb = new ProcessBuilder("wsl", "docker", "system", "df", "-v", "--format", "{{json .}}");
+            logger.info("Executing 'docker system df' in the selected WSL distribution...");
+            java.util.List<String> dockerCommand = WslDockerCommand.build(
+                    tlsEnabled, host, port, certificatePath,
+                    "system", "df", "-v", "--format", "{{json .}}");
+            ProcessBuilder pb = WslCommandLine.processBuilder(
+                    distribution, dockerCommand.toArray(String[]::new));
+            pb.redirectErrorStream(true);
             Process process = pb.start();
 
             try (BufferedReader reader = new BufferedReader(

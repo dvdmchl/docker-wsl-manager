@@ -19,6 +19,8 @@ import java.util.Properties;
 public final class SettingsManager {
     private static final Logger logger = LoggerFactory.getLogger(SettingsManager.class);
     private static final String CONTAINER_TREE_STATE_KEY = "containers.tree.state";
+    private static final String SECURITY_WARNING_DISMISSED_KEY =
+            "docker.security.warning.dismissed";
     private final Properties settings = new Properties();
     private final Path configFilePath;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,7 +48,15 @@ public final class SettingsManager {
         File userConfig = configFilePath.toFile();
         if (userConfig.exists()) {
             try (InputStream input = new FileInputStream(userConfig)) {
-                settings.load(input);
+                Properties userSettings = new Properties();
+                userSettings.load(input);
+                settings.putAll(userSettings);
+                if (!userSettings.containsKey("docker.connection.mode")
+                        && userSettings.containsKey("docker.tls.enabled")) {
+                    settings.setProperty("docker.connection.mode",
+                            Boolean.parseBoolean(userSettings.getProperty("docker.tls.enabled"))
+                                    ? DockerConnectionMode.TLS.name() : DockerConnectionMode.WSL_IP.name());
+                }
             } catch (IOException | RuntimeException e) {
                 logger.error("Failed to load user settings", e);
             }
@@ -85,6 +95,66 @@ public final class SettingsManager {
 
     public void setWslDistro(String distro) {
         settings.setProperty("wsl.distro", distro);
+    }
+
+    public int getDockerPort() {
+        String value = settings.getProperty("docker.port", "2375");
+        try {
+            int port = Integer.parseInt(value);
+            return port > 0 && port <= 65535 ? port : 2375;
+        } catch (NumberFormatException e) {
+            return 2375;
+        }
+    }
+
+    public void setDockerPort(int port) {
+        if (port <= 0 || port > 65535) {
+            throw new IllegalArgumentException("Docker port must be between 1 and 65535.");
+        }
+        settings.setProperty("docker.port", String.valueOf(port));
+    }
+
+    public DockerConnectionMode getDockerConnectionMode() {
+        String configuredMode = settings.getProperty("docker.connection.mode");
+        if (configuredMode == null || configuredMode.isBlank()) {
+            return Boolean.parseBoolean(settings.getProperty("docker.tls.enabled", "false"))
+                    ? DockerConnectionMode.TLS : DockerConnectionMode.WSL_IP;
+        }
+        try {
+            return DockerConnectionMode.valueOf(configuredMode.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return DockerConnectionMode.WSL_IP;
+        }
+    }
+
+    public void setDockerConnectionMode(DockerConnectionMode mode) {
+        settings.setProperty("docker.connection.mode",
+                java.util.Objects.requireNonNull(mode, "mode").name());
+        settings.remove("docker.tls.enabled");
+    }
+
+    public String getDockerTlsHost() {
+        return settings.getProperty("docker.tls.host", "").trim();
+    }
+
+    public void setDockerTlsHost(String host) {
+        settings.setProperty("docker.tls.host", host == null ? "" : host.trim());
+    }
+
+    public String getDockerCertPath() {
+        return settings.getProperty("docker.tls.cert.path", "").trim();
+    }
+
+    public void setDockerCertPath(String path) {
+        settings.setProperty("docker.tls.cert.path", path == null ? "" : path.trim());
+    }
+
+    public boolean isDockerSecurityWarningDismissed() {
+        return Boolean.parseBoolean(settings.getProperty(SECURITY_WARNING_DISMISSED_KEY, "false"));
+    }
+
+    public void setDockerSecurityWarningDismissed(boolean dismissed) {
+        settings.setProperty(SECURITY_WARNING_DISMISSED_KEY, String.valueOf(dismissed));
     }
 
     public ContainerTreeState getContainerTreeState() {

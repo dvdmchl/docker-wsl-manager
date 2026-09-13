@@ -22,6 +22,8 @@
                     <Menu text="Help">
                         <items>
                             <MenuItem text="Check for Updates" onAction="#handleCheckForUpdatesAction"/>
+                            <MenuItem text="Secure Docker Connection" onAction="#handleSecureDockerSetupAction"/>
+                            <MenuItem text="Privacy Policy" onAction="#handlePrivacyPolicyAction"/>
                             <MenuItem text="About" onAction="#handleAboutAction"/>
                         </items>
                     </Menu>

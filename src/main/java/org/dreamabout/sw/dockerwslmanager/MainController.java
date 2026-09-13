@@ -17,6 +17,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
@@ -94,6 +96,10 @@ public class MainController {
     private static final String COLOR_GREEN = "-fx-text-fill: green;";
     private static final String COLOR_RED = "-fx-text-fill: red;";
     private static final String FONT_COURIER_NEW = "Courier New";
+    private static final String PRIVACY_URL =
+            "https://github.com/dvdmchl/docker-wsl-manager/blob/main/PRIVACY.md";
+    private static final String SECURE_DOCKER_GUIDE_URL =
+            "https://github.com/dvdmchl/docker-wsl-manager/blob/main/DOCKER_WSL_SECURITY.md";
     
     private final VolumeLogic volumeLogic = new VolumeLogic();
     private final VolumeUsageService volumeUsageService = new VolumeUsageService();
@@ -112,6 +118,7 @@ public class MainController {
     });
     private final AtomicBoolean refreshInProgress = new AtomicBoolean();
     private final AtomicBoolean connectionFailureReported = new AtomicBoolean();
+    private boolean compatibilityWarningShown;
     private volatile boolean shuttingDown;
 
     // Map to track active stats labels by container ID for updates
@@ -713,6 +720,13 @@ public class MainController {
     private void performUpdateCheck(boolean silentIfLatest) {
         new Thread(() -> {
             UpdateManager updateManager = new UpdateManager();
+            if (updateManager.isStoreManaged()) {
+                if (!silentIfLatest) {
+                    Platform.runLater(() -> showAlert(Alert.AlertType.INFORMATION, "Updates",
+                            "This installation is updated by Microsoft Store."));
+                }
+                return;
+            }
             Optional<UpdateManager.ReleaseInfo> update = updateManager.checkForUpdates();
             Platform.runLater(() -> {
                 if (update.isPresent()) {
@@ -743,14 +757,74 @@ public class MainController {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("About Docker WSL Manager");
         alert.setHeaderText("Docker WSL Manager v" + new UpdateManager().getCurrentVersion());
-        alert.setContentText("A JavaFX application to manage Docker instances running in WSL 2.\n\n" +
-                "Source code: https://github.com/dvdmchl/Docker-WSL-Manager");
+        alert.setContentText("An independent JavaFX application for managing Docker Engine in WSL 2.\n\n"
+                + "Source code: https://github.com/dvdmchl/Docker-WSL-Manager\n"
+                + "Privacy policy: " + PRIVACY_URL + "\n"
+                + "Update channel: " + new UpdateManager().getUpdateChannel());
         alert.showAndWait();
     }
 
     @FXML
+    private void handlePrivacyPolicyAction() {
+        openInBrowser(PRIVACY_URL);
+    }
+
+    @FXML
+    private void handleSecureDockerSetupAction() {
+        showDockerSecurityGuide(Alert.AlertType.INFORMATION);
+    }
+
+    private void showDockerSecurityGuide(Alert.AlertType alertType) {
+        Alert alert = new Alert(alertType);
+        alert.setTitle("Secure Docker Connection");
+        alert.setHeaderText("Choose the connection mode that fits your WSL setup");
+        String guideText = "WSL address compatibility mode works with Docker listening on port 2375, "
+                + "but that endpoint has no encryption or authentication. Anyone who can reach it can "
+                + "control Docker.\n\n"
+                + "Safer options:\n"
+                + "1. Windows localhost: bind Docker to 127.0.0.1 inside WSL and verify that Windows localhost "
+                + "forwarding reaches the selected port.\n"
+                + "2. Authenticated TLS: configure Docker TLS on port 2376 and select the directory containing "
+                + "ca.pem, cert.pem and key.pem.\n\n"
+                + "The detailed guide contains tested commands and verification steps.";
+        Label guideLabel = new Label(guideText);
+        guideLabel.setWrapText(true);
+        VBox guideContent = new VBox(12, guideLabel);
+        CheckBox dismissWarning = null;
+        if (alertType == Alert.AlertType.WARNING) {
+            dismissWarning = new CheckBox("Don't show this warning again");
+            guideContent.getChildren().add(dismissWarning);
+        }
+        alert.getDialogPane().setContent(guideContent);
+        alert.setResizable(true);
+        ButtonType openGuide = new ButtonType("Open Detailed Guide");
+        alert.getButtonTypes().setAll(openGuide, ButtonType.CLOSE);
+        if (alert.showAndWait().filter(openGuide::equals).isPresent()) {
+            openInBrowser(SECURE_DOCKER_GUIDE_URL);
+        }
+        if (dismissWarning != null && dismissWarning.isSelected()) {
+            settingsManager.setDockerSecurityWarningDismissed(true);
+            try {
+                settingsManager.saveSettings();
+            } catch (IOException e) {
+                logger.warn("Could not persist the compatibility warning preference", e);
+            }
+        }
+    }
+
+    private void showCompatibilityWarningIfNeeded() {
+        if (compatibilityWarningShown
+                || settingsManager.isDockerSecurityWarningDismissed()
+                || !settingsManager.getDockerConnectionMode().isInsecureCompatibilityMode()) {
+            return;
+        }
+        compatibilityWarningShown = true;
+        showDockerSecurityGuide(Alert.AlertType.WARNING);
+    }
+
+    @FXML
     private void handleGeneralSettingsAction() {
-        javafx.scene.control.Dialog<javafx.util.Pair<String, String>> dialog = new javafx.scene.control.Dialog<>();
+        javafx.scene.control.Dialog<Boolean> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle("General Settings");
         dialog.setHeaderText("Configure Application Settings");
 
@@ -766,13 +840,49 @@ public class MainController {
         TextField intervalField = new TextField(String.valueOf(settingsManager.getAutoRefreshInterval()));
         TextField statsIntervalField = new TextField(String.valueOf(settingsManager.getStatsRefreshInterval()));
         TextField distroField = new TextField(settingsManager.getWslDistro());
+        TextField dockerPortField = new TextField(String.valueOf(settingsManager.getDockerPort()));
+        ChoiceBox<DockerConnectionMode> connectionModeField = new ChoiceBox<>(
+                FXCollections.observableArrayList(DockerConnectionMode.values()));
+        connectionModeField.setValue(settingsManager.getDockerConnectionMode());
+        TextField tlsHostField = new TextField(settingsManager.getDockerTlsHost());
+        tlsHostField.setPromptText("Docker host name or address");
+        TextField certificatePathField = new TextField(settingsManager.getDockerCertPath());
+        certificatePathField.setPromptText("Directory containing ca.pem, cert.pem and key.pem");
 
         grid.add(new Label("Auto-refresh Interval (seconds):"), 0, 0);
         grid.add(intervalField, 1, 0);
         grid.add(new Label("Stats Refresh Interval (seconds):"), 0, 1);
         grid.add(statsIntervalField, 1, 1);
-        grid.add(new Label("WSL Distro (for volumes):"), 0, 2);
+        grid.add(new Label("WSL distribution:"), 0, 2);
         grid.add(distroField, 1, 2);
+        grid.add(new Label("Connection mode:"), 0, 3);
+        grid.add(connectionModeField, 1, 3);
+        grid.add(new Label("Docker port:"), 0, 4);
+        grid.add(dockerPortField, 1, 4);
+        grid.add(new Label("TLS host:"), 0, 5);
+        grid.add(tlsHostField, 1, 5);
+        grid.add(new Label("TLS certificate directory:"), 0, 6);
+        grid.add(certificatePathField, 1, 6);
+
+        Label connectionHint = new Label();
+        connectionHint.setWrapText(true);
+        grid.add(connectionHint, 0, 7, 2, 1);
+
+        Runnable updateConnectionFields = () -> {
+            DockerConnectionMode mode = connectionModeField.getValue();
+            boolean tls = mode == DockerConnectionMode.TLS;
+            tlsHostField.setDisable(!tls);
+            certificatePathField.setDisable(!tls);
+            connectionHint.setText(mode == DockerConnectionMode.WSL_IP
+                    ? "Compatibility mode automatically discovers the WSL address. It is unencrypted; "
+                            + "use only on a trusted local machine."
+                    : mode == DockerConnectionMode.LOOPBACK
+                            ? "Localhost mode never connects to the WSL network address."
+                            : "TLS mode verifies the Docker server and client certificates.");
+        };
+        connectionModeField.valueProperty().addListener(
+                (observable, oldValue, newValue) -> updateConnectionFields.run());
+        updateConnectionFields.run();
 
         dialog.getDialogPane().setContent(grid);
 
@@ -780,30 +890,37 @@ public class MainController {
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
-                return new javafx.util.Pair<>(intervalField.getText() + "|" + statsIntervalField.getText(), 
-                        distroField.getText());
+                return true;
             }
             return null;
         });
 
-        Optional<javafx.util.Pair<String, String>> result = dialog.showAndWait();
-        result.ifPresent(settings -> {
+        Optional<Boolean> result = dialog.showAndWait();
+        result.ifPresent(saved -> {
             try {
-                String[] intervals = settings.getKey().split("\\|");
-                int autoRefreshSecs = Integer.parseInt(intervals[0]);
-                int statsRefreshSecs = Integer.parseInt(intervals[1]);
+                int autoRefreshSecs = Integer.parseInt(intervalField.getText());
+                int statsRefreshSecs = Integer.parseInt(statsIntervalField.getText());
+                int dockerPort = Integer.parseInt(dockerPortField.getText());
                 
-                if (autoRefreshSecs < 1) autoRefreshSecs = 1;
-                if (statsRefreshSecs < 1) statsRefreshSecs = 1;
+                if (autoRefreshSecs < 1) {
+                    autoRefreshSecs = 1;
+                }
+                if (statsRefreshSecs < 1) {
+                    statsRefreshSecs = 1;
+                }
 
                 settingsManager.setAutoRefreshInterval(autoRefreshSecs);
                 settingsManager.setStatsRefreshInterval(statsRefreshSecs);
-                settingsManager.setWslDistro(settings.getValue());
+                settingsManager.setWslDistro(distroField.getText().trim());
+                settingsManager.setDockerPort(dockerPort);
+                settingsManager.setDockerConnectionMode(connectionModeField.getValue());
+                settingsManager.setDockerTlsHost(tlsHostField.getText());
+                settingsManager.setDockerCertPath(certificatePathField.getText());
                 settingsManager.saveSettings();
-                volumePathResolver = new VolumePathResolver(settings.getValue());
+                volumePathResolver = new VolumePathResolver(distroField.getText());
                 setupAutoRefreshTimeline();
-            } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter valid numbers for intervals.");
+            } catch (IllegalArgumentException e) {
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", e.getMessage());
             } catch (Exception e) {
                 logger.error("Failed to save settings", e);
                 showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to save settings: " + e.getMessage());
@@ -1967,27 +2084,10 @@ public class MainController {
                 return;
             }
 
-            // Get Docker host information to construct the docker command
-            String dockerHost = connectionManager.getCurrentConnectionString();
-
-            // Build docker attach command
-            StringBuilder dockerCommand = new StringBuilder();
-
-            // If using custom Docker host, set DOCKER_HOST environment variable
-            if (dockerHost != null && !dockerHost.isEmpty() && !dockerHost.equals("default")) {
-                dockerCommand.append("set DOCKER_HOST=").append(dockerHost).append(" && ");
-            }
-
-            dockerCommand.append("docker exec -it ").append(containerId).append(" sh");
-            dockerCommand.append(" || pause");
-
-            // Start new cmd window with docker exec
-            ProcessBuilder processBuilder = new ProcessBuilder(
-                    "cmd.exe", "/c", "start",
-                    "Docker Console - " + containerName,
-                    "cmd.exe", "/k",
-                    dockerCommand.toString()
-            );
+            ProcessBuilder processBuilder = new ProcessBuilder(ConsoleCommandBuilder.build(
+                    settingsManager.getWslDistro(), containerId,
+                    settingsManager.getDockerConnectionMode().usesTls(), settingsManager.getDockerTlsHost(),
+                    settingsManager.getDockerPort(), settingsManager.getDockerCertPath()));
             processBuilder.start();
 
             logger.info("Opened console for container: {}", containerName);
@@ -2090,7 +2190,10 @@ public class MainController {
         calculateVolumeSizesButton.setDisable(true);
         new Thread(() -> {
             try {
-                Map<String, Long> sizes = volumeUsageService.fetchVolumeSizes();
+                Map<String, Long> sizes = volumeUsageService.fetchVolumeSizes(
+                        settingsManager.getWslDistro(), settingsManager.getDockerConnectionMode().usesTls(),
+                        settingsManager.getDockerTlsHost(), settingsManager.getDockerPort(),
+                        settingsManager.getDockerCertPath());
                 Platform.runLater(() -> {
                     updateVolumeSizes(sizes);
                     calculateVolumeSizesButton.setDisable(false);
@@ -2098,7 +2201,8 @@ public class MainController {
             } catch (Exception e) {
                 logger.error("Failed to calculate volume sizes", e);
                 Platform.runLater(() -> {
-                    showAlert(Alert.AlertType.ERROR, ERROR_TITLE, "Failed to calculate volume sizes: " + e.getMessage());
+                    showAlert(Alert.AlertType.ERROR, ERROR_TITLE,
+                            "Failed to calculate volume sizes: " + e.getMessage());
                     calculateVolumeSizesButton.setDisable(false);
                 });
             }
@@ -2754,7 +2858,12 @@ public class MainController {
         try {
             refreshExecutor.execute(() -> {
                 logger.info("Attempting auto-connect to Docker...");
-                boolean connected = connectionManager.connectAutoDiscover();
+                boolean connected = connectionManager.connectConfigured(
+                        settingsManager.getWslDistro(),
+                        settingsManager.getDockerPort(),
+                        settingsManager.getDockerConnectionMode(),
+                        settingsManager.getDockerTlsHost(),
+                        settingsManager.getDockerCertPath());
                 if (shuttingDown) {
                     refreshInProgress.set(false);
                     return;
@@ -2765,14 +2874,11 @@ public class MainController {
                     updateConnectionStatus();
                     if (connected) {
                         refreshAll();
+                        showCompatibilityWarningIfNeeded();
                         logger.info("Auto-connected to Docker successfully");
                     } else {
                         showAlert(Alert.AlertType.ERROR, "Docker Connection Failed",
-                                "Could not automatically connect to Docker in WSL.\n\n"
-                                + "Please ensure:\n"
-                                + "- WSL is running\n"
-                                + "- Docker is installed and running in WSL\n"
-                                + "- Docker daemon is listening on port 2375\n\n"
+                                connectionManager.getLastConnectionError() + "\n\n"
                                 + (startup ? "You can use the 'Connect / Reconnect' button to retry."
                                 : "Try reconnecting after Docker and WSL are available."));
                         logger.warn("Failed to auto-connect to Docker");

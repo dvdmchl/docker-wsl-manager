@@ -18,6 +18,22 @@ public class UpdateManager {
     
     // Fallback if manifest is missing
     private static final String DEV_VERSION = "0.0.0-dev";
+    private static final String UPDATE_CHANNEL_PROPERTY = "dockerwslmanager.updateChannel";
+
+    public enum UpdateChannel {
+        GITHUB,
+        STORE
+    }
+
+    private final UpdateChannel updateChannel;
+
+    public UpdateManager() {
+        this(parseUpdateChannel(System.getProperty(UPDATE_CHANNEL_PROPERTY, "github")));
+    }
+
+    UpdateManager(UpdateChannel updateChannel) {
+        this.updateChannel = updateChannel;
+    }
 
     public static class ReleaseInfo {
         private String tagName;
@@ -43,6 +59,10 @@ public class UpdateManager {
     }
 
     public Optional<ReleaseInfo> checkForUpdates() {
+        if (isStoreManaged()) {
+            logger.info("Skipping GitHub update check for the Microsoft Store channel");
+            return Optional.empty();
+        }
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/releases/latest"))
@@ -73,6 +93,18 @@ public class UpdateManager {
             logger.error("Failed to check for updates", e);
         }
         return Optional.empty();
+    }
+
+    public boolean isStoreManaged() {
+        return updateChannel == UpdateChannel.STORE;
+    }
+
+    public UpdateChannel getUpdateChannel() {
+        return updateChannel;
+    }
+
+    private static UpdateChannel parseUpdateChannel(String value) {
+        return "store".equalsIgnoreCase(value) ? UpdateChannel.STORE : UpdateChannel.GITHUB;
     }
 
     private boolean isNewer(String remote, String current) {
